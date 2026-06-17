@@ -48,4 +48,4 @@ ENV PORT=10000
 EXPOSE 10000
 
 # Arrancar con gunicorn (1 worker, varios hilos para el scraping paralelo)
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120 app:app
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180 app:app

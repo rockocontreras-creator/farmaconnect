@@ -1314,16 +1314,28 @@ def scraping_manual():
         return jsonify({"error": "Falta el parámetro"}), 400
 
     res = []
-    threads = [
-        threading.Thread(target=scrape_task, args=(logic_ahumada, remedio, res)),
-        threading.Thread(target=scrape_task, args=(logic_drsimi, remedio, res)),
-        threading.Thread(target=scrape_task, args=(logic_salcobrand, remedio, res)),
-        # Cruz Verde usa HTTP directo (no Selenium) — no necesita scrape_task con Chrome
-        threading.Thread(target=logic_cruzverde, args=(remedio, res))
-    ]
-    for t in threads: t.start()
-    # Timeout global: si una farmacia se cuelga, no esperar más de 35s en total
-    for t in threads: t.join(timeout=35)
+    # Cruz Verde es HTTP (ligero), siempre va en su propio hilo
+    hilo_cv = threading.Thread(target=logic_cruzverde, args=(remedio, res))
+    hilo_cv.start()
+
+    # En producción con poca memoria (Render free = 512MB), abrir 3 Chrome a la vez
+    # agota la memoria y el servidor se cae (502). Por eso se ejecutan UNA a la vez.
+    # En local (con más memoria) se ejecutan en paralelo para ir más rápido.
+    memoria_limitada = bool(os.environ.get("RENDER"))
+
+    tareas_selenium = [logic_ahumada, logic_drsimi, logic_salcobrand]
+
+    if memoria_limitada:
+        # Secuencial: un solo Chrome abierto a la vez
+        for func in tareas_selenium:
+            scrape_task(func, remedio, res)
+    else:
+        # Paralelo: las 3 a la vez (rápido, requiere más memoria)
+        hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]
+        for t in hilos: t.start()
+        for t in hilos: t.join(timeout=35)
+
+    hilo_cv.join(timeout=20)
 
     # Filtro de relevancia: descartar resultados que claramente no corresponden a la búsqueda
     res_filtrado = _filtrar_relevantes(res, remedio)
