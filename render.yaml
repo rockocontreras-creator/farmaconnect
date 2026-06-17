@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: farmaconnect
+    runtime: docker
+    plan: free
+    envVars:
+      - key: RENDER
+        value: "true"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: APP_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@farmaconnect.cl
+      - key: ADMIN_PASSWORD
+        sync: false
