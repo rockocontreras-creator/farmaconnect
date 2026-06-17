@@ -121,8 +121,7 @@ def inicializar_nuevo_esquema():
                         FOREIGN KEY(id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE)''')
 
     # Crear un administrador por defecto si no existe ninguno
-    # (útil en producción, donde la BD puede reiniciarse)
-    import hashlib, os
+    import hashlib
     APP_SECRET = os.environ.get('APP_SECRET', 'farmaconnect_dev_secret_2024')
     def _hash(p): return hashlib.sha256(f"{APP_SECRET}{p}".encode()).hexdigest()
     cursor = conn.cursor()
@@ -138,6 +137,89 @@ def inicializar_nuevo_esquema():
             print(f"Admin creado: {admin_correo}")
         except Exception as e:
             print(f"Admin ya existía o error: {e}")
+
+    # ============================================================
+    # DATOS DE EJEMPLO PARA LA DEMO (usuarios + historial)
+    # ============================================================
+    print("Cargando datos de ejemplo para la demostración...")
+
+    # Usuarios de ejemplo (contraseña para todos: demo12345)
+    usuarios_demo = [
+        ("Juan Contreras", "juan@demo.cl", "demo12345", 0),
+        ("Camila Beltrán", "camila@demo.cl", "demo12345", 0),
+        ("María González", "maria@demo.cl", "demo12345", 0),
+    ]
+    for nombre, correo, clave, admin in usuarios_demo:
+        try:
+            cursor.execute(
+                "INSERT INTO usuarios (nombre, correo, contraseña, es_admin) VALUES (?, ?, ?, ?)",
+                (nombre, correo, _hash(clave), admin)
+            )
+        except Exception:
+            pass  # ya existe
+
+    # Medicamentos de ejemplo
+    medicamentos_demo = ["paracetamol", "ibuprofeno", "amoxicilina", "loratadina", "omeprazol"]
+    for med in medicamentos_demo:
+        try:
+            cursor.execute("INSERT INTO medicamentos (nombre_buscado) VALUES (?)", (med,))
+        except Exception:
+            pass
+
+    # Historial de ejemplo: precios por farmacia para cada medicamento.
+    # Estructura: medicamento -> [(id_farmacia, precio, nombre_producto), ...]
+    historial_demo = {
+        "paracetamol": [
+            (1, 731, "Paracetamol 500 mg x 16 Comprimidos"),
+            (2, 480, "Paracetamol 500 Mg 16 Comprimidos"),
+            (3, 999, "Kitadol Paracetamol 500mg 24 Comprimidos"),
+            (4, 1290, "Paracetamol 500 Mg 16 Comprimidos"),
+        ],
+        "ibuprofeno": [
+            (1, 1190, "Ibuprofeno 400 mg x 20 Comprimidos"),
+            (2, 890, "Ibuprofeno 400 Mg 20 Comprimidos"),
+            (3, 1490, "Ibuprofeno 600 mg x 20 Comprimidos"),
+            (4, 1390, "Ibuprofeno 400 Mg 20 Comprimidos"),
+        ],
+        "amoxicilina": [
+            (1, 1195, "Amoxicilina 500 mg"),
+            (2, 2200, "Amoxicilina 250 Mg/5 ML Suspensión Oral"),
+            (3, 3199, "Amoxicilina 500mg/5ml Suspensión Oral 60ml"),
+            (4, 3051, "Amoxicilina 500 Mg 5ml Jarabe 60 Ml"),
+        ],
+        "loratadina": [
+            (1, 990, "Loratadina 10 mg x 10 Comprimidos"),
+            (2, 750, "Loratadina 10 Mg 10 Comprimidos"),
+            (3, 1290, "Clarityne Loratadina 10mg x 10"),
+            (4, 1100, "Loratadina 10 Mg 10 Comprimidos"),
+        ],
+        "omeprazol": [
+            (1, 2490, "Omeprazol 20 mg x 30 Cápsulas"),
+            (2, 1890, "Omeprazol 20 Mg 30 Cápsulas"),
+            (3, 2990, "Omeprazol 20 mg x 28 Cápsulas"),
+            (4, 2690, "Omeprazol 20 Mg 30 Cápsulas"),
+        ],
+    }
+
+    for med, registros in historial_demo.items():
+        # obtener id del medicamento
+        fila = cursor.execute(
+            "SELECT id_medicamento FROM medicamentos WHERE nombre_buscado = ?", (med,)
+        ).fetchone()
+        if not fila:
+            continue
+        id_med = fila[0]
+        for id_farm, precio, nombre_prod in registros:
+            try:
+                cursor.execute(
+                    """INSERT INTO historial (id_farmacia, id_medicamento, id_usuario, precio, nombre_especifico)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (id_farm, id_med, 1, precio, nombre_prod)
+                )
+            except Exception:
+                pass
+
+    print("Datos de ejemplo cargados.")
 
     conn.commit()
 

@@ -1330,27 +1330,12 @@ def scraping_manual():
     hilo_cv = threading.Thread(target=logic_cruzverde, args=(remedio, res))
     hilo_cv.start()
 
-    # En producción con poca memoria (Render free = 512MB), abrir 3 Chrome a la vez
-    # agota la memoria y el servidor se cae (502). Por eso se ejecutan de a DOS,
-    # que equilibra velocidad y memoria. En local (más memoria) van las 3 en paralelo.
-    memoria_limitada = bool(os.environ.get("RENDER"))
-
+    # Las farmacias de Selenium se consultan TODAS en paralelo para máxima rapidez.
+    # (Si el servidor se quedara sin memoria, reducir a grupos de 2.)
     tareas_selenium = [logic_ahumada, logic_drsimi, logic_salcobrand]
-
-    if memoria_limitada:
-        # De a dos: nunca más de 2 Chrome abiertos a la vez
-        i = 0
-        while i < len(tareas_selenium):
-            grupo = tareas_selenium[i:i+2]
-            hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in grupo]
-            for t in hilos: t.start()
-            for t in hilos: t.join(timeout=50)
-            i += 2
-    else:
-        # Paralelo: las 3 a la vez (rápido, requiere más memoria)
-        hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]
-        for t in hilos: t.start()
-        for t in hilos: t.join(timeout=35)
+    hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]
+    for t in hilos: t.start()
+    for t in hilos: t.join(timeout=45)
 
     hilo_cv.join(timeout=20)
 
