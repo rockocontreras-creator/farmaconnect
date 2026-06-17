@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaConnect Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ========================================================= -->
+    <!-- PANTALLA DE AUTENTICACIÓN (cubre toda la app al inicio)   -->
+    <!-- ========================================================= -->
+    <div id="auth-overlay" class="auth-overlay">
+        <!-- Iconos flotantes decorativos -->
+        <div class="auth-floating-icons">
+            <i data-lucide="pill" style="top:15%;left:10%;animation-delay:0s;"></i>
+            <i data-lucide="heart-pulse" style="top:25%;left:85%;animation-delay:1.5s;"></i>
+            <i data-lucide="cross" style="top:65%;left:8%;animation-delay:3s;"></i>
+            <i data-lucide="stethoscope" style="top:70%;left:88%;animation-delay:2s;"></i>
+        </div>
+
+        <div class="auth-split">
+            <!-- PANEL IZQUIERDO: carrusel de farmacias -->
+            <div class="auth-left-panel">
+                <div class="auth-carousel" id="auth-carousel">
+                    <div class="auth-slide active" data-farmacia="Cruz Verde" style="--farm-color:#009639;">
+                        <div class="auth-slide-icon"><i data-lucide="cross"></i></div>
+                        <h3>Cruz Verde</h3>
+                        <p>Compara los precios de Cruz Verde al instante</p>
+                    </div>
+                    <div class="auth-slide" data-farmacia="Farmacias Ahumada" style="--farm-color:#003399;">
+                        <div class="auth-slide-icon"><i data-lucide="plus-circle"></i></div>
+                        <h3>Farmacias Ahumada</h3>
+                        <p>Encuentra las mejores ofertas de Ahumada</p>
+                    </div>
+                    <div class="auth-slide" data-farmacia="Salcobrand" style="--farm-color:#e6a817;">
+                        <div class="auth-slide-icon"><i data-lucide="heart-pulse"></i></div>
+                        <h3>Salcobrand</h3>
+                        <p>Revisa precios y descuentos de Salcobrand</p>
+                    </div>
+                    <div class="auth-slide" data-farmacia="Dr. Simi" style="--farm-color:#ce000c;">
+                        <div class="auth-slide-icon"><i data-lucide="pill"></i></div>
+                        <h3>Dr. Simi</h3>
+                        <p>Descubre los precios económicos de Dr. Simi</p>
+                    </div>
+                </div>
+                <div class="auth-carousel-dots" id="auth-carousel-dots"></div>
+                <div class="auth-left-footer">
+                    <i data-lucide="shield-check" style="width:16px;height:16px;"></i>
+                    Comparamos 4 farmacias en segundos
+                </div>
+            </div>
+
+            <!-- PANEL DERECHO: formulario -->
+            <div class="auth-card">
+
+                <!-- Logo dentro del modal -->
+                <div class="auth-brand">
+                    <i data-lucide="activity" class="auth-brand-icon"></i>
+                    <span>FarmaConnect</span>
+                </div>
+                <p class="auth-subtitle">Tu salud y tu bolsillo, en un solo lugar</p>
+
+            <!-- TABS Login / Registro -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Iniciar sesión</button>
+                <button class="auth-tab" id="tab-registro" onclick="switchAuthTab('registro')">Crear cuenta</button>
+            </div>
+
+            <!-- Mensaje de error/éxito -->
+            <div id="auth-alert" class="auth-alert" style="display:none;"></div>
+
+            <!-- FORMULARIO LOGIN -->
+            <div id="form-login" class="auth-form active-form">
+                <div class="auth-field">
+                    <label>Correo electrónico</label>
+                    <div class="auth-input-wrap">
+                        <i data-lucide="mail" class="auth-input-icon"></i>
+                        <input type="email" id="login-correo" placeholder="tu@correo.com" autocomplete="email">
+                    </div>
+                </div>
+                <div class="auth-field">
+                    <label>Contraseña</label>
+                    <div class="auth-input-wrap">
+                        <i data-lucide="lock" class="auth-input-icon"></i>
+                        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
+                               onkeypress="if(event.key==='Enter') doLogin()">
+                        <button class="toggle-pw-btn" onclick="togglePw('login-password', this)" tabindex="-1">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <button class="auth-submit-btn" onclick="doLogin()" id="btn-login">
+                    <span>Entrar</span>
+                    <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- FORMULARIO REGISTRO -->
+            <div id="form-registro" class="auth-form">
+                <div class="auth-field">
+                    <label>Nombre completo</label>
+                    <div class="auth-input-wrap">
+                        <i data-lucide="user" class="auth-input-icon"></i>
+                        <input type="text" id="reg-nombre" placeholder="Tu nombre" autocomplete="name">
+                    </div>
+                </div>
+                <div class="auth-field">
+                    <label>Correo electrónico</label>
+                    <div class="auth-input-wrap">
+                        <i data-lucide="mail" class="auth-input-icon"></i>
+                        <input type="email" id="reg-correo" placeholder="tu@correo.com" autocomplete="email">
+                    </div>
+                </div>
+                <div class="auth-field">
+                    <label>Contraseña <span class="auth-hint">(mín. 8 caracteres)</span></label>
+                    <div class="auth-input-wrap">
+                        <i data-lucide="lock" class="auth-input-icon"></i>
+                        <input type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password"
+                               oninput="evaluarPassword(this.value)"
+                               onkeypress="if(event.key==='Enter') doRegistro()">
+                        <button class="toggle-pw-btn" onclick="togglePw('reg-password', this)" tabindex="-1">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                    <div class="pw-strength" id="pw-strength">
+                        <div class="pw-strength-bars">
+                            <div class="pw-strength-bar" id="pw-bar-1"></div>
+                            <div class="pw-strength-bar" id="pw-bar-2"></div>
+                            <div class="pw-strength-bar" id="pw-bar-3"></div>
+                            <div class="pw-strength-bar" id="pw-bar-4"></div>
+                        </div>
+                        <span class="pw-strength-label" id="pw-strength-label"></span>
+                    </div>
+                </div>
+                <button class="auth-submit-btn" onclick="doRegistro()" id="btn-registro">
+                    <span>Crear cuenta</span>
+                    <i data-lucide="user-plus"></i>
+                </button>
+            </div>
+
+            </div><!-- /auth-card -->
+        </div><!-- /auth-split -->
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- APP PRINCIPAL                                             -->
+    <!-- ========================================================= -->
+    <div class="dashboard-layout" id="app-main" style="display:none;">
+        <aside class="sidebar">
+            <div class="brand-container" style="cursor:pointer;" onclick="irAlInicio()">
+                <i data-lucide="activity" class="brand-icon"></i>
+                <h2>FarmaConnect</h2>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-btn active" onclick="showSection('home', this)">
+                    <i data-lucide="home"></i> <span data-i18n="nav_inicio">Inicio</span>
+                </button>
+                <button class="nav-btn" onclick="showSection('chat', this)">
+                    <i data-lucide="message-square"></i> <span data-i18n="nav_mathew">Mathew IA</span>
+                </button>
+                <button class="nav-btn" onclick="showSection('search', this)">
+                    <i data-lucide="bar-chart-2"></i> <span data-i18n="nav_comparador">Comparador</span>
+                </button>
+                <button class="nav-btn" onclick="showSection('identificador', this)">
+                    <i data-lucide="scan"></i> <span data-i18n="nav_identificador">Identificador</span>
+                </button>
+                <button class="nav-btn" onclick="showSection('optimizador', this)">
+                    <i data-lucide="calculator"></i> <span data-i18n="nav_optimizador">Optimizador</span>
+                </button>
+                <button class="nav-btn" onclick="showSection('interacciones', this)">
+                    <i data-lucide="alert-triangle"></i> <span data-i18n="nav_interacciones">Interacciones</span>
+                </button>
+                <button class="nav-btn" onclick="showSection('turno', this)">
+                    <i data-lucide="clock"></i> <span data-i18n="nav_turno">Farmacias de Turno</span>
+                </button>
+                <button class="nav-btn" onclick="abrirHistorial(this)">
+                    <i data-lucide="history"></i> Historial
+                </button>
+                <button class="nav-btn" onclick="showSection('map', this)">
+                    <i data-lucide="map"></i> Mapa Salud
+                </button>
+                <button class="nav-btn nav-admin" id="nav-admin-btn" onclick="abrirAdmin(this)" style="display:none;">
+                    <i data-lucide="shield"></i> Administración
+                </button>
+            </nav>
+
+            <!-- Perfil de usuario en sidebar -->
+            <div class="sidebar-user-card" id="sidebar-user">
+                <div class="user-avatar" id="user-avatar-initials" onclick="abrirPerfil()" style="cursor:pointer;">?</div>
+                <div class="user-info" onclick="abrirPerfil()" style="cursor:pointer;">
+                    <p class="user-name" id="sidebar-user-name">—</p>
+                    <p class="user-savings" id="sidebar-savings">Ver mi ahorro</p>
+                </div>
+                <button class="logout-btn" onclick="doLogout()" title="Cerrar sesión">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Modal de Perfil (ahorro + nivel) -->
+        <div id="perfil-modal" class="modal-overlay" style="display:none;">
+            <div class="modal-card" style="max-width:520px;">
+                <div class="modal-header">
+                    <h3><i data-lucide="user" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;"></i> Mi Perfil</h3>
+                    <button class="modal-close" onclick="document.getElementById('perfil-modal').style.display='none'">✕</button>
+                </div>
+                <div id="perfil-content"></div>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <div class="top-bar">
+                <div class="system-status">
+                    <span class="status-indicator"></span>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Servidor Local Activo (Puerto 8000)</p>
+                </div>
+                <div class="top-bar-actions">
+                    <!-- Campana de alertas -->
+                    <div class="notif-wrapper" id="notif-wrapper" style="display:none;">
+                        <button class="notif-bell" onclick="toggleNotifPanel()">
+                            <i data-lucide="bell"></i>
+                            <span class="notif-count" id="notif-count" style="display:none;">0</span>
+                        </button>
+                        <div class="notif-panel" id="notif-panel" style="display:none;">
+                            <div class="notif-panel-header">
+                                <strong>Alertas de precio</strong>
+                                <button onclick="abrirGestionAlertas()" class="notif-manage-btn">Gestionar</button>
+                            </div>
+                            <div id="notif-list" class="notif-list"></div>
+                        </div>
+                    </div>
+                    <!-- Configuración -->
+                    <button class="theme-switcher-btn" onclick="abrirConfiguracion()" title="Configuración">
+                        <i data-lucide="settings"></i>
+                    </button>
+                    <button id="theme-toggle" class="theme-switcher-btn" title="Alternar Modo de Diseño">
+                        <i data-lucide="moon" id="theme-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: INICIO / HOME -->
+            <div id="home-section" class="content-section active-section">
+                <!-- Hero de bienvenida -->
+                <div class="home-hero">
+                    <div class="home-hero-text">
+                        <span class="home-badge" data-i18n="hero_badge">Plataforma de Salud Inteligente</span>
+                        <h1><span data-i18n="hero_title">Bienvenido a</span> <span class="home-brand-text">FarmaConnect</span></h1>
+                        <p data-i18n="hero_desc">Compara precios de medicamentos en tiempo real, identifica pastillas con inteligencia artificial, y consulta con nuestro asistente clínico Mathew.</p>
+                        <div class="home-hero-actions">
+                            <button class="btn-premium home-hero-btn" onclick="irASeccion('search')">
+                                <i data-lucide="bar-chart-2"></i> <span data-i18n="hero_btn1">Comparar precios</span>
+                            </button>
+                            <button class="btn-premium home-hero-btn home-hero-btn-outline" onclick="irASeccion('chat')">
+                                <i data-lucide="message-square"></i> <span data-i18n="hero_btn2">Hablar con Mathew</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Features -->
+                <div class="home-features">
+                    <div class="home-feature-card" onclick="irASeccion('search')">
+                        <div class="home-feature-icon" style="background:#2563eb15;color:#2563eb;"><i data-lucide="bar-chart-2"></i></div>
+                        <h3 data-i18n="feat1_title">Comparador en Tiempo Real</h3>
+                        <p data-i18n="feat1_desc">Busca cualquier medicamento y compara precios en Ahumada, Dr. Simi, Salcobrand y Cruz Verde.</p>
+                    </div>
+                    <div class="home-feature-card" onclick="irASeccion('identificador')">
+                        <div class="home-feature-icon" style="background:#10b98115;color:#10b981;"><i data-lucide="scan"></i></div>
+                        <h3 data-i18n="feat2_title">Identificador de Pastillas</h3>
+                        <p data-i18n="feat2_desc">Sube una foto de cualquier pastilla y la IA te dice qué medicamento es.</p>
+                    </div>
+                    <div class="home-feature-card" onclick="irASeccion('chat')">
+                        <div class="home-feature-icon" style="background:#f59e0b15;color:#f59e0b;"><i data-lucide="message-square"></i></div>
+                        <h3 data-i18n="feat3_title">Asistente Mathew IA</h3>
+                        <p data-i18n="feat3_desc">Consulta síntomas o dudas de salud con nuestro chatbot clínico con entrada por voz.</p>
+                    </div>
+                    <div class="home-feature-card" onclick="irASeccion('map')">
+                        <div class="home-feature-icon" style="background:#ef444415;color:#ef4444;"><i data-lucide="map-pin"></i></div>
+                        <h3 data-i18n="feat4_title">Mapa de Salud</h3>
+                        <p data-i18n="feat4_desc">Encuentra farmacias, clínicas y hospitales cercanos a tu ubicación.</p>
+                    </div>
+                </div>
+
+                <!-- Carrusel de medicamentos populares (rediseñado) -->
+                <div class="home-popular-section">
+                    <div class="home-popular-header">
+                        <h2 data-i18n="popular_title">Medicamentos más buscados</h2>
+                        <p data-i18n="popular_desc">Los precios más bajos encontrados por nuestro sistema.</p>
+                    </div>
+                    <div class="home-carousel" id="home-carousel">
+                        <div class="home-carousel-empty" id="carousel-empty">
+                            <i data-lucide="search" style="width:32px;height:32px;opacity:0.3;"></i>
+                            <p>Aún no hay medicamentos registrados.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 1: MATHEW IA -->
+            <div id="chat-section" class="content-section">
+                <div class="card-premium chat-card">
+                    <div class="section-header chat-header-row">
+                        <div>
+                            <h2>Asistente Virtual Mathew</h2>
+                            <p>Adjunta tu receta médica en imagen o realiza consultas de salud clínica.</p>
+                        </div>
+                        <button class="btn-clear-chat" onclick="limpiarChatHistorial()" title="Limpiar historial de conversación">
+                            <i data-lucide="trash-2"></i> Limpiar historial
+                        </button>
+                    </div>
+                    <div id="chat-box" class="chat-container">
+                        <div class="chat-msg chat-msg-bot">
+                            <div class="chat-avatar chat-avatar-bot"><i data-lucide="bot"></i></div>
+                            <div class="chat-msg-content">
+                                <span class="chat-sender-name">Mathew</span>
+                                <div class="chat-bubble chat-bubble-bot">¡Hola! Bienvenido a <strong>FarmaConnect</strong>. ¿En qué malestar o síntoma puedo orientarte hoy? También puedo ayudarte a encontrar farmacias o clínicas cercanas.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-wrapper">
+                        <div class="input-group">
+                            <label for="file-input" class="file-label-btn" title="Adjuntar imagen de receta médica">
+                                <i data-lucide="paperclip"></i>
+                            </label>
+                            <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="previewFile()">
+                            <input type="text" id="chat-input" class="input-premium" placeholder="Escribe tu síntoma o habla con el micrófono..." onkeypress="if(event.key === 'Enter') enviarMensaje()">
+                            <button class="btn-mic" id="btn-mic" onclick="toggleVoz()" title="Entrada por voz">
+                                <i data-lucide="mic" id="mic-icon"></i>
+                            </button>
+                            <button class="btn-premium" onclick="enviarMensaje()">
+                                <i data-lucide="send"></i>
+                            </button>
+                        </div>
+                        <!-- Indicador de voz activa -->
+                        <div id="voice-indicator" class="voice-indicator" style="display:none;">
+                            <span class="voice-pulse"></span>
+                            <span>Escuchando... habla ahora</span>
+                            <button onclick="detenerVoz()" class="voice-stop-btn">Detener</button>
+                        </div>
+                        <div id="file-preview-container" class="file-preview-badge" style="display:none;">
+                            <i data-lucide="image" size="14" style="color: var(--primary);"></i>
+                            <span id="file-preview-name"></span>
+                            <button onclick="clearFile()" class="clear-file-btn">✕</button>
+                        </div>
+                        <div class="legal-warning">
+                            ⚠️ Los análisis automatizados por Inteligencia Artificial no reemplazan el diagnóstico de un médico. Consulte siempre a su profesional de la salud.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 2: COMPARADOR -->
+            <div id="search-section" class="content-section">
+                <div class="card-premium">
+                    <div class="section-header">
+                        <h2>Comparador de Precios en Tiempo Real</h2>
+                        <p>El sistema ejecutará consultas en paralelo sobre los e-commerce farmacéuticos de Chile.</p>
+                    </div>
+                    <div class="search-bar-box">
+                        <i data-lucide="search" class="search-bar-icon"></i>
+                        <input type="text" id="manual-search" class="input-premium inline-search" placeholder="Escribe el nombre del medicamento (Ej: Tapsin, Paracetamol)">
+                        <button class="btn-premium" onclick="startScraping()">
+                            <i data-lucide="play"></i> Comparar
+                        </button>
+                    </div>
+
+                    <!-- Filtros y bioequivalente (aparecen después de buscar) -->
+                    <div id="comparador-tools" style="display:none;">
+                        <div class="filter-row">
+                            <div class="filter-tabs">
+                                <button class="filter-tab active" onclick="filtrarResultados('todos', this)">Todos</button>
+                                <button class="filter-tab" onclick="filtrarResultados('ofertas', this)">🏷️ En oferta</button>
+                                <button class="filter-tab" onclick="filtrarResultados('baratos', this)">💰 Más baratos</button>
+                            </div>
+                            <button class="btn-bioequivalente" id="btn-bioequivalente" onclick="buscarBioequivalente()">
+                                <i data-lucide="flask-conical"></i> Buscar alternativa genérica
+                            </button>
+                            <button class="btn-reportar" id="btn-reportar" onclick="abrirModalReporte()">
+                                <i data-lucide="map-pin"></i> Reportar precio visto
+                            </button>
+                        </div>
+                        <div id="bioequivalente-result" style="display:none;"></div>
+                    </div>
+
+                    <div id="scraping-results" class="results-layout-grid"></div>
+
+                    <!-- Precios reportados por la comunidad -->
+                    <div id="comunidad-precios" style="display:none;"></div>
+
+                    <!-- Calculadora de tratamiento completo -->
+                    <div id="calc-tratamiento" style="display:none;">
+                        <div class="calc-card">
+                            <h3><i data-lucide="calculator" style="width:18px;height:18px;vertical-align:middle;"></i> Calculadora de tratamiento</h3>
+                            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:14px;">Calcula cuántas cajas necesitas y el costo total del tratamiento.</p>
+                            <div class="calc-grid">
+                                <div class="calc-field">
+                                    <label>Tomas por día</label>
+                                    <input type="number" id="calc-tomas" class="input-premium" value="3" min="1" oninput="calcularTratamiento()">
+                                </div>
+                                <div class="calc-field">
+                                    <label>Días de tratamiento</label>
+                                    <input type="number" id="calc-dias" class="input-premium" value="7" min="1" oninput="calcularTratamiento()">
+                                </div>
+                                <div class="calc-field">
+                                    <label>Unidades por caja</label>
+                                    <input type="number" id="calc-unidades" class="input-premium" value="16" min="1" oninput="calcularTratamiento()">
+                                </div>
+                            </div>
+                            <div id="calc-resultado" class="calc-resultado"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: IDENTIFICADOR DE PASTILLAS -->
+            <div id="identificador-section" class="content-section">
+                <div class="card-premium">
+                    <div class="section-header">
+                        <h2>Identificador de Pastillas</h2>
+                        <p>Sube una foto de cualquier pastilla, comprimido o cápsula y la IA identificará el medicamento.</p>
+                    </div>
+
+                    <!-- Zona de carga de imagen -->
+                    <div class="pill-upload-zone" id="pill-drop-zone" onclick="document.getElementById('pill-file-input').click()">
+                        <input type="file" id="pill-file-input" accept="image/*" capture="environment" style="display:none;" onchange="pillFileSelected(event)" multiple>
+                        <div class="pill-upload-placeholder" id="pill-placeholder">
+                            <i data-lucide="camera" class="pill-upload-icon"></i>
+                            <p>Arrastra hasta 2 fotos o toca para abrir la cámara</p>
+                            <span>Anverso y reverso de la pastilla — JPG, PNG</span>
+                        </div>
+                        <div class="pill-previews" id="pill-previews" style="display:none;"></div>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="pill-actions">
+                        <button class="btn-premium" id="pill-identify-btn" onclick="identificarPastilla()" disabled>
+                            <i data-lucide="search"></i> Identificar medicamento
+                        </button>
+                        <button class="pill-clear-btn" id="pill-clear-btn" onclick="limpiarIdentificador()" style="display:none;">
+                            <i data-lucide="x"></i> Limpiar
+                        </button>
+                    </div>
+
+                    <!-- Resultado de la identificación -->
+                    <div id="pill-result" style="display:none;"></div>
+
+                    <!-- Advertencia legal -->
+                    <div class="legal-warning" style="margin-top:16px;">
+                        ⚠️ La identificación por IA es orientativa. Consulte siempre a un farmacéutico o médico para confirmar el medicamento.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: OPTIMIZADOR DE RECETA -->
+            <div id="optimizador-section" class="content-section">
+                <div class="card-premium">
+                    <div class="section-header">
+                        <h2>Optimizador de Receta Completa</h2>
+                        <p>Sube una foto de tu receta médica y el sistema encontrará la combinación más económica entre todas las farmacias.</p>
+                    </div>
+
+                    <!-- Paso 1: Subir receta -->
+                    <div id="opt-step-upload">
+                        <div class="pill-upload-zone" id="opt-drop-zone" onclick="document.getElementById('opt-file-input').click()">
+                            <input type="file" id="opt-file-input" accept="image/*" capture="environment" style="display:none;" onchange="optFileSelected(event)">
+                            <div class="pill-upload-placeholder" id="opt-placeholder">
+                                <i data-lucide="file-text" class="pill-upload-icon"></i>
+                                <p>Sube la foto de tu receta médica</p>
+                                <span>La IA extraerá todos los medicamentos automáticamente</span>
+                            </div>
+                            <img id="opt-preview-img" class="pill-preview-img" style="display:none;">
+                        </div>
+                        <div class="pill-actions">
+                            <button class="btn-premium" id="opt-extract-btn" onclick="extraerReceta()" disabled>
+                                <i data-lucide="scan"></i> Extraer medicamentos
+                            </button>
+                            <button class="pill-clear-btn" id="opt-clear-btn" onclick="limpiarOptimizador()" style="display:none;">
+                                <i data-lucide="x"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Paso 2: Lista de medicamentos extraídos (editable) -->
+                    <div id="opt-step-meds" style="display:none;"></div>
+
+                    <!-- Paso 3: Resultados del scraping + optimización -->
+                    <div id="opt-step-results" style="display:none;"></div>
+
+                    <div class="legal-warning" style="margin-top:16px;">
+                        ⚠️ Verifica siempre que los medicamentos extraídos coincidan con tu receta antes de comprar.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: DETECTOR DE INTERACCIONES -->
+            <div id="interacciones-section" class="content-section">
+                <div class="card-premium">
+                    <div class="section-header">
+                        <h2>Detector de Interacciones</h2>
+                        <p>Ingresa los medicamentos que tomas y la IA detectará posibles interacciones peligrosas entre ellos.</p>
+                    </div>
+
+                    <div class="inter-input-area">
+                        <div class="inter-add-row">
+                            <input type="text" id="inter-med-input" class="input-premium" placeholder="Ej: Paracetamol, Ibuprofeno..." onkeypress="if(event.key==='Enter') agregarMedInteraccion()">
+                            <button class="btn-premium" onclick="agregarMedInteraccion()">
+                                <i data-lucide="plus"></i> Agregar
+                            </button>
+                        </div>
+                        <div id="inter-chips" class="inter-chips"></div>
+                        <button class="btn-premium inter-analyze-btn" id="inter-analyze-btn" onclick="analizarInteracciones()" disabled style="width:100%;justify-content:center;margin-top:12px;">
+                            <i data-lucide="alert-triangle"></i> Analizar interacciones
+                        </button>
+                    </div>
+
+                    <div id="inter-result" style="display:none;margin-top:20px;"></div>
+
+                    <div class="legal-warning" style="margin-top:16px;">
+                        ⚠️ Este análisis es orientativo y generado por IA. Consulta SIEMPRE a tu médico o farmacéutico antes de combinar medicamentos.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: FARMACIAS DE TURNO -->
+            <div id="turno-section" class="content-section">
+                <div class="card-premium">
+                    <div class="section-header">
+                        <h2>Farmacias de Turno</h2>
+                        <p>Encuentra las farmacias de turno (24h) disponibles hoy en tu comuna.</p>
+                    </div>
+
+                    <div class="turno-search-row">
+                        <select id="turno-comuna" class="input-premium select-premium" style="flex:1;">
+                            <option value="">Selecciona tu comuna</option>
+                        </select>
+                        <button class="btn-premium" onclick="buscarFarmaciasTurno()">
+                            <i data-lucide="search"></i> Buscar
+                        </button>
+                    </div>
+
+                    <div id="turno-result" style="margin-top:20px;"></div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 3: HISTORIAL -->
+            <div id="history-section" class="content-section">
+                <div class="card-premium">
+                    <div class="section-header chat-header-row">
+                        <div>
+                            <h2>Evolución de Precio Histórico</h2>
+                            <p>Analiza las fluctuaciones de precios entre farmacias a lo largo del tiempo.</p>
+                        </div>
+                        <div class="selector-control-box">
+                            <select id="med-selector" class="input-premium select-premium hist-selector" onchange="cargarHistorialFiltrado()">
+                                <option value="">Selecciona un medicamento</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tarjetas de resumen (se llenan dinámicamente) -->
+                    <div class="hist-stats-grid" id="hist-stats" style="display:none;">
+                        <div class="hist-stat-card hist-stat-best">
+                            <span class="hist-stat-label">Precio más bajo</span>
+                            <span class="hist-stat-value" id="hist-stat-min">—</span>
+                            <span class="hist-stat-sub" id="hist-stat-min-farm">—</span>
+                        </div>
+                        <div class="hist-stat-card">
+                            <span class="hist-stat-label">Precio más alto</span>
+                            <span class="hist-stat-value" id="hist-stat-max">—</span>
+                            <span class="hist-stat-sub" id="hist-stat-max-farm">—</span>
+                        </div>
+                        <div class="hist-stat-card">
+                            <span class="hist-stat-label">Precio promedio</span>
+                            <span class="hist-stat-value" id="hist-stat-avg">—</span>
+                            <span class="hist-stat-sub" id="hist-stat-avg-sub">entre todas las farmacias</span>
+                        </div>
+                        <div class="hist-stat-card">
+                            <span class="hist-stat-label">Registros totales</span>
+                            <span class="hist-stat-value" id="hist-stat-count">—</span>
+                            <span class="hist-stat-sub" id="hist-stat-count-sub">búsquedas registradas</span>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico -->
+                    <div class="chart-wrapper-box" id="chart-wrapper-box">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+
+                    <!-- Tabla de datos detallada -->
+                    <div id="hist-data-table" style="display:none;margin-top:20px;">
+                        <details class="hist-details">
+                            <summary class="hist-details-summary">Ver datos detallados</summary>
+                            <div class="results-table-wrapper" style="margin-top:12px;">
+                                <table class="results-table" id="hist-table-body"></table>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 4: MAPA -->
+            <div id="map-section" class="content-section">
+                <div class="card-premium">
+                    <div class="section-header">
+                        <h2>Sucursales Cercanas de Atención</h2>
+                        <p>Capture sus coordenadas espaciales automáticas para mapear los establecimientos de salud más próximos.</p>
+                    </div>
+                    <div class="map-action-tabs">
+                        <button class="btn-premium btn-tab-map" onclick="actualizarMapa('hospitales')">
+                            <i data-lucide="heart-pulse"></i> Centros Médicos
+                        </button>
+                        <button class="btn-premium btn-tab-map btn-tab-secondary" onclick="actualizarMapa('farmacias')">
+                            <i data-lucide="map-pin"></i> Cadenas de Farmacias
+                        </button>
+                    </div>
+                    <div class="map-frame-wrapper">
+                        <iframe id="map-iframe" width="100%" height="480" frameborder="0" src="about:blank" allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 5: PANEL DE ADMINISTRADOR -->
+            <div id="admin-section" class="content-section">
+                <div class="section-header" style="margin-bottom:24px;">
+                    <h2>Panel de Administración</h2>
+                    <p>Gestiona usuarios, historial de búsquedas y el catálogo de medicamentos.</p>
+                </div>
+
+                <!-- Tarjetas de estadísticas -->
+                <div class="admin-stats-grid" id="admin-stats">
+                    <div class="stat-card"><span class="stat-label">Usuarios</span><span class="stat-value" id="stat-usuarios">—</span></div>
+                    <div class="stat-card"><span class="stat-label">Administradores</span><span class="stat-value" id="stat-admins">—</span></div>
+                    <div class="stat-card"><span class="stat-label">Medicamentos</span><span class="stat-value" id="stat-meds">—</span></div>
+                    <div class="stat-card"><span class="stat-label">Búsquedas</span><span class="stat-value" id="stat-busquedas">—</span></div>
+                    <div class="stat-card stat-card-alert"><span class="stat-label">Reportes pendientes</span><span class="stat-value" id="stat-pendientes">—</span></div>
+                </div>
+
+                <!-- Sub-pestañas del panel -->
+                <div class="admin-tabs">
+                    <button class="admin-tab active" onclick="adminTab('usuarios', this)">Usuarios</button>
+                    <button class="admin-tab" onclick="adminTab('reportes', this)">Reportes <span id="admin-reportes-badge" class="admin-tab-badge" style="display:none;">0</span></button>
+                    <button class="admin-tab" onclick="adminTab('historial', this)">Historial</button>
+                    <button class="admin-tab" onclick="adminTab('medicamentos', this)">Medicamentos</button>
+                </div>
+
+                <div class="card-premium" style="padding:0;overflow:hidden;">
+                    <div id="admin-panel-usuarios" class="admin-panel"></div>
+                    <div id="admin-panel-reportes" class="admin-panel" style="display:none;"></div>
+                    <div id="admin-panel-historial" class="admin-panel" style="display:none;"></div>
+                    <div id="admin-panel-medicamentos" class="admin-panel" style="display:none;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de edición de usuario -->
+    <div id="edit-user-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Editar usuario</h3>
+                <button class="modal-close" onclick="cerrarModalUsuario()">✕</button>
+            </div>
+            <input type="hidden" id="edit-user-id">
+            <div class="auth-field">
+                <label>Nombre</label>
+                <div class="auth-input-wrap"><i data-lucide="user" class="auth-input-icon"></i>
+                    <input type="text" id="edit-user-nombre"></div>
+            </div>
+            <div class="auth-field">
+                <label>Correo</label>
+                <div class="auth-input-wrap"><i data-lucide="mail" class="auth-input-icon"></i>
+                    <input type="email" id="edit-user-correo"></div>
+            </div>
+            <div class="auth-field">
+                <label>Nueva contraseña <span class="auth-hint">(opcional, dejar en blanco para no cambiar)</span></label>
+                <div class="auth-input-wrap"><i data-lucide="lock" class="auth-input-icon"></i>
+                    <input type="password" id="edit-user-password" placeholder="••••••••"></div>
+            </div>
+            <label class="admin-checkbox">
+                <input type="checkbox" id="edit-user-admin"> Es administrador
+            </label>
+            <div id="edit-user-alert" class="auth-alert error" style="display:none;"></div>
+            <button class="auth-submit-btn" onclick="guardarUsuario()">
+                <span>Guardar cambios</span><i data-lucide="check"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de reportar precio comunitario -->
+    <div id="reporte-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card" style="max-width:460px;">
+            <div class="modal-header">
+                <h3><i data-lucide="map-pin" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;color:#10b981;"></i> Reportar precio visto</h3>
+                <button class="modal-close" onclick="cerrarModalReporte()">✕</button>
+            </div>
+            <p style="color:var(--text-muted);font-size:0.85rem;">Ayuda a la comunidad reportando el precio que viste en una farmacia física. Tus datos valen oro para otros.</p>
+
+            <div class="auth-field">
+                <label>Medicamento</label>
+                <div class="auth-input-wrap">
+                    <i data-lucide="pill" class="auth-input-icon"></i>
+                    <input type="text" id="reporte-med" class="input-premium" placeholder="Ej: Paracetamol 500mg">
+                </div>
+            </div>
+            <div class="auth-field">
+                <label>Farmacia</label>
+                <div class="auth-input-wrap">
+                    <i data-lucide="building-2" class="auth-input-icon"></i>
+                    <select id="reporte-farmacia" class="input-premium select-premium" style="width:100%;">
+                        <option value="">Selecciona farmacia</option>
+                        <option value="Ahumada">Ahumada</option>
+                        <option value="Dr. Simi">Dr. Simi</option>
+                        <option value="Salcobrand">Salcobrand</option>
+                        <option value="Cruz Verde">Cruz Verde</option>
+                        <option value="Farmacia local / Otra">Farmacia local / Otra</option>
+                    </select>
+                </div>
+            </div>
+            <div class="auth-field">
+                <label>Precio que pagaste (CLP)</label>
+                <div class="auth-input-wrap">
+                    <i data-lucide="tag" class="auth-input-icon"></i>
+                    <input type="number" id="reporte-precio" class="input-premium" placeholder="Ej: 450">
+                </div>
+            </div>
+            <div class="auth-field">
+                <label>Comuna (opcional)</label>
+                <div class="auth-input-wrap">
+                    <i data-lucide="map" class="auth-input-icon"></i>
+                    <select id="reporte-comuna" class="input-premium select-premium" style="width:100%;">
+                        <option value="">Selecciona tu comuna</option>
+                    </select>
+                </div>
+            </div>
+            <button class="auth-submit-btn" onclick="enviarReporte()">
+                <span>Enviar reporte</span>
+                <i data-lucide="send"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración -->
+    <div id="settings-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card" style="max-width:480px;">
+            <div class="modal-header">
+                <h3><i data-lucide="settings" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;"></i> Configuración</h3>
+                <button class="modal-close" onclick="cerrarConfiguracion()">✕</button>
+            </div>
+
+            <!-- Tema -->
+            <div class="settings-group">
+                <div class="settings-label">
+                    <i data-lucide="palette" style="width:16px;height:16px;"></i>
+                    <span>Apariencia</span>
+                </div>
+                <div class="settings-theme-options">
+                    <button class="settings-theme-btn" id="theme-opt-light" onclick="setTheme('light')">
+                        <i data-lucide="sun"></i> Claro
+                    </button>
+                    <button class="settings-theme-btn" id="theme-opt-dark" onclick="setTheme('dark')">
+                        <i data-lucide="moon"></i> Oscuro
+                    </button>
+                </div>
+            </div>
+
+            <!-- Idioma -->
+            <div class="settings-group">
+                <div class="settings-label">
+                    <i data-lucide="globe" style="width:16px;height:16px;"></i>
+                    <span>Idioma</span>
+                </div>
+                <div class="settings-theme-options">
+                    <button class="settings-theme-btn" id="lang-opt-es" onclick="setIdioma('es')">
+                        Español
+                    </button>
+                    <button class="settings-theme-btn" id="lang-opt-en" onclick="setIdioma('en')">
+                        English
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tipografía -->
+            <div class="settings-group">
+                <div class="settings-label">
+                    <i data-lucide="type" style="width:16px;height:16px;"></i>
+                    <span>Tipografía</span>
+                </div>
+                <div class="settings-font-options">
+                    <button class="settings-font-btn" onclick="setFont('Inter')" data-font="Inter">
+                        <span style="font-family:'Inter',sans-serif;">Inter</span>
+                        <small>Moderna y limpia</small>
+                    </button>
+                    <button class="settings-font-btn" onclick="setFont('Poppins')" data-font="Poppins">
+                        <span style="font-family:'Poppins',sans-serif;">Poppins</span>
+                        <small>Redondeada y amigable</small>
+                    </button>
+                    <button class="settings-font-btn" onclick="setFont('Roboto')" data-font="Roboto">
+                        <span style="font-family:'Roboto',sans-serif;">Roboto</span>
+                        <small>Clásica de Google</small>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modo adulto mayor -->
+            <div class="settings-group">
+                <div class="settings-label">
+                    <i data-lucide="accessibility" style="width:16px;height:16px;"></i>
+                    <span>Modo adulto mayor</span>
+                </div>
+                <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;">Agranda el texto y aumenta el contraste para mejor lectura.</p>
+                <label class="settings-toggle">
+                    <input type="checkbox" id="settings-senior-toggle" onchange="toggleModoSenior(this.checked)">
+                    <span class="settings-toggle-slider"></span>
+                    <span class="settings-toggle-text" id="settings-senior-text">Desactivado</span>
+                </label>
+            </div>
+
+            <!-- Notificaciones -->
+            <div class="settings-group">
+                <div class="settings-label">
+                    <i data-lucide="bell" style="width:16px;height:16px;"></i>
+                    <span>Notificaciones de precios</span>
+                </div>
+                <label class="settings-toggle">
+                    <input type="checkbox" id="settings-notif-toggle" onchange="toggleNotificaciones(this.checked)" checked>
+                    <span class="settings-toggle-slider"></span>
+                    <span class="settings-toggle-text" id="settings-notif-text">Activadas</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de creación de alerta de precio -->
+    <div id="alert-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>🔔 Crear alerta de precio</h3>
+                <button class="modal-close" onclick="cerrarModalAlerta()">✕</button>
+            </div>
+            <p style="color:var(--text-muted);font-size:0.88rem;">Te avisaremos cuando el precio baje del umbral que definas.</p>
+            <div class="auth-field">
+                <label>Medicamento</label>
+                <div class="auth-input-wrap">
+                    <i data-lucide="pill" class="auth-input-icon"></i>
+                    <input type="text" id="alert-med-name" readonly class="input-premium">
+                </div>
+            </div>
+            <div class="auth-field">
+                <label>Precio actual más bajo encontrado</label>
+                <div class="auth-input-wrap">
+                    <i data-lucide="tag" class="auth-input-icon"></i>
+                    <input type="text" id="alert-precio-actual" readonly class="input-premium">
+                </div>
+            </div>
+            <div class="auth-field">
+                <label>Avisarme cuando baje de (CLP)</label>
+                <div class="auth-input-wrap">
+                    <i data-lucide="bell" class="auth-input-icon"></i>
+                    <input type="number" id="alert-umbral" class="input-premium" placeholder="Ej: 500">
+                </div>
+            </div>
+            <button class="auth-submit-btn" onclick="confirmarAlerta()">
+                <span>Crear alerta</span>
+                <i data-lucide="bell-ring"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de gestión de alertas activas -->
+    <div id="alertas-gestion-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card" style="max-width:520px;">
+            <div class="modal-header">
+                <h3>Mis alertas activas</h3>
+                <button class="modal-close" onclick="document.getElementById('alertas-gestion-modal').style.display='none'">✕</button>
+            </div>
+            <div id="alertas-gestion-list" class="alertas-gestion-list"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
