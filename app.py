@@ -674,6 +674,9 @@ def get_driver():
     opts.add_argument("--disable-translate")
     opts.add_argument("--mute-audio")
     opts.add_argument("--no-first-run")
+    # Flags que estabilizan Chrome en servidores con poca memoria/CPU (Render)
+    opts.add_argument("--disable-software-rasterizer")
+    opts.add_argument("--disable-features=site-per-process,TranslateUI")
     opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     # Bloquear imágenes, fuentes y CSS para cargar mucho más rápido
     prefs = {
@@ -703,7 +706,16 @@ def get_driver():
             _DRIVER_PATH = ChromeDriverManager().install()
         service = Service(_DRIVER_PATH, log_output=os.devnull)
         driver = webdriver.Chrome(service=service, options=opts)
-    driver.set_page_load_timeout(15)
+    # En Render (servidor lento) Chrome necesita más tiempo para responder.
+    # En local, 15s es suficiente.
+    if os.environ.get("RENDER"):
+        driver.set_page_load_timeout(40)
+        try:
+            driver.set_script_timeout(40)
+        except Exception:
+            pass
+    else:
+        driver.set_page_load_timeout(15)
     try:
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
