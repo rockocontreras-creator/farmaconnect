@@ -686,8 +686,12 @@ def get_driver():
     # En local se usa webdriver-manager para descargar el driver.
     if os.environ.get("RENDER") or os.path.exists("/usr/bin/google-chrome"):
         opts.binary_location = "/usr/bin/google-chrome"
-        # Selenium 4 (Selenium Manager) resuelve el driver automáticamente
-        driver = webdriver.Chrome(options=opts)
+        # Usar el chromedriver instalado en el Dockerfile (ruta fija, sin búsquedas por red)
+        if os.path.exists("/usr/local/bin/chromedriver"):
+            service = Service("/usr/local/bin/chromedriver", log_output=os.devnull)
+            driver = webdriver.Chrome(service=service, options=opts)
+        else:
+            driver = webdriver.Chrome(options=opts)
     else:
         if _DRIVER_PATH is None:
             _DRIVER_PATH = ChromeDriverManager().install()
@@ -708,21 +712,23 @@ def scrape_task(func, remedio, res_list):
        Reintenta solo si NO obtuvo resultados (fallo de carga o anti-bot)."""
     nombre_farmacia = func.__name__.replace("logic_", "").capitalize()
     antes = len(res_list)
+    print(f"--> Iniciando {nombre_farmacia}...", flush=True)
     for intento in (1, 2):
         driver = None
         try:
             driver = get_driver()
             func(remedio, driver, res_list)
         except Exception as e:
-            print(f"[{nombre_farmacia}] intento {intento} falló: {str(e)[:120]}")
+            print(f"[{nombre_farmacia}] intento {intento} falló: {str(e)[:200]}", flush=True)
         finally:
             if driver:
                 try: driver.quit()
                 except Exception: pass
         if len(res_list) > antes:
+            print(f"<-- {nombre_farmacia} OK ({len(res_list)-antes} resultados)", flush=True)
             break  # ya hay resultado, no reintentar
         elif intento == 1:
-            print(f"[{nombre_farmacia}] sin resultados, reintentando...")
+            print(f"[{nombre_farmacia}] sin resultados, reintentando...", flush=True)
 
 
 def _cargar(driver, url):
