@@ -1,7 +1,28 @@
 import sqlite3
+import os
+
+DB_DIR = os.environ.get('DB_DIR', '.')
+DB_PATH = os.path.join(DB_DIR, 'farmacia.db')
 
 def inicializar_nuevo_esquema():
-    conn = sqlite3.connect('farmacia.db')
+    os.makedirs(DB_DIR, exist_ok=True)
+
+    # Si la base de datos ya existe y tiene usuarios, NO la recrear
+    # (esto preserva los datos en el disco persistente de Render).
+    if os.path.exists(DB_PATH):
+        try:
+            chk = sqlite3.connect(DB_PATH)
+            existe = chk.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'"
+            ).fetchone()
+            chk.close()
+            if existe:
+                print("La base de datos ya existe. Se conservan los datos.")
+                return
+        except Exception:
+            pass
+
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     print("Eliminando tablas antiguas para evitar colisiones...")

@@ -50,11 +50,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Inicializar la base de datos si no existe
-RUN python init_db.py || true
+# La base de datos se inicializa al ARRANCAR (no al construir),
+# porque el disco persistente se monta recién al ejecutar el contenedor.
 
 # Render asigna el puerto por la variable PORT
 ENV PORT=10000
 EXPOSE 10000
 
-# Arrancar con gunicorn (1 worker, varios hilos para el scraping paralelo)
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180 app:app
+# Arrancar: primero inicializa la BD (si no existe), luego lanza el servidor
+CMD python init_db.py; gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180 app:app
