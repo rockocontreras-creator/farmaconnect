@@ -6,6 +6,32 @@ lucide.createIcons();
 let ultimosResultados = "";
 let base64File = null;
 let miGrafico = null;
+
+// =========================================================
+// COLAPSAR / MOSTRAR SIDEBAR (botón hamburguesa)
+// =========================================================
+function toggleSidebar() {
+    const layout = document.getElementById('app-main');
+    if (!layout) return;
+    // En móvil el sidebar se desliza desde la izquierda; en escritorio se colapsa
+    if (window.innerWidth <= 768) {
+        layout.classList.toggle('sidebar-open');
+    } else {
+        layout.classList.toggle('sidebar-collapsed');
+    }
+}
+
+// Cerrar el sidebar al tocar fuera de él (solo en móvil)
+document.addEventListener('click', function(e) {
+    if (window.innerWidth > 768) return;
+    const layout = document.getElementById('app-main');
+    if (!layout || !layout.classList.contains('sidebar-open')) return;
+    const sidebar = document.querySelector('.sidebar');
+    const toggleBtn = document.querySelector('.menu-toggle-btn');
+    if (sidebar && !sidebar.contains(e.target) && toggleBtn && !toggleBtn.contains(e.target)) {
+        layout.classList.remove('sidebar-open');
+    }
+});
 // API apunta al mismo servidor que sirve la página.
 // En local (abriendo con archivo) usa 127.0.0.1:8000; en producción usa el mismo origen.
 const API = (location.protocol === 'file:' || location.hostname === '')
@@ -155,6 +181,9 @@ async function doLogout() {
         await fetch(`${API}/logout`, { method: 'POST', headers: authHeaders() });
     } catch (_) {}
     clearToken();
+
+    // Limpiar el chat para que el próximo usuario no vea la conversación anterior
+    reiniciarChatVisual();
 
     // Ocultar app, mostrar overlay
     document.getElementById('app-main').style.display = 'none';
@@ -423,13 +452,34 @@ function clearFile() {
 // =========================================================
 // HISTORIAL DE CHAT PERSISTENTE
 // =========================================================
+// Mensaje de bienvenida por defecto del chat (se usa al cerrar sesión o sin historial)
+const CHAT_BIENVENIDA = `
+    <div class="chat-msg chat-msg-bot">
+        <div class="chat-avatar chat-avatar-bot"><i data-lucide="bot"></i></div>
+        <div class="chat-msg-content">
+            <span class="chat-sender-name">Mathew</span>
+            <div class="chat-bubble chat-bubble-bot">¡Hola! Bienvenido a <strong>FarmaConnect</strong>. ¿En qué malestar o síntoma puedo orientarte hoy? También puedo ayudarte a encontrar farmacias o clínicas cercanas.</div>
+        </div>
+    </div>`;
+
+function reiniciarChatVisual() {
+    const box = document.getElementById('chat-box');
+    if (box) {
+        box.innerHTML = CHAT_BIENVENIDA;
+        lucide.createIcons();
+    }
+}
+
 async function cargarChatHistorial() {
     if (!getToken()) return;
+    // Siempre limpiar el chat antes de cargar el del usuario actual,
+    // para no mostrar la conversación de un usuario anterior.
+    reiniciarChatVisual();
     try {
         const r = await fetch(`${API}/chat/historial`, { headers: authHeaders() });
         if (!r.ok) return;
         const mensajes = await r.json();
-        if (mensajes.length === 0) return;
+        if (mensajes.length === 0) return;  // se queda el mensaje de bienvenida
 
         const box = document.getElementById('chat-box');
         box.innerHTML = '';

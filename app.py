@@ -709,9 +709,9 @@ def get_driver():
     # En Render (servidor lento) Chrome necesita más tiempo para responder.
     # En local, 15s es suficiente.
     if os.environ.get("RENDER"):
-        driver.set_page_load_timeout(40)
+        driver.set_page_load_timeout(50)
         try:
-            driver.set_script_timeout(40)
+            driver.set_script_timeout(50)
         except Exception:
             pass
     else:
@@ -1338,16 +1338,23 @@ def scraping_manual():
         return jsonify({"error": "Falta el parámetro"}), 400
 
     res = []
-    # Cruz Verde es HTTP (ligero), siempre va en su propio hilo
+    # Cruz Verde es HTTP (ligero, no usa Chrome), siempre va en paralelo en su hilo
     hilo_cv = threading.Thread(target=logic_cruzverde, args=(remedio, res))
     hilo_cv.start()
 
-    # Las farmacias de Selenium se consultan TODAS en paralelo para máxima rapidez.
-    # (Si el servidor se quedara sin memoria, reducir a grupos de 2.)
     tareas_selenium = [logic_ahumada, logic_drsimi, logic_salcobrand]
-    hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]
-    for t in hilos: t.start()
-    for t in hilos: t.join(timeout=45)
+
+    if os.environ.get("RENDER"):
+        # En Render (512MB RAM, CPU compartida) abrir 2-3 Chrome a la vez satura el
+        # servidor y TODAS las farmacias dan "timeout receiving message from renderer".
+        # Por eso se ejecutan de UNA EN UNA: más lento, pero las 4 responden siempre.
+        for func in tareas_selenium:
+            scrape_task(func, remedio, res)
+    else:
+        # En local hay CPU de sobra: las 3 en paralelo (rápido)
+        hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]
+        for t in hilos: t.start()
+        for t in hilos: t.join(timeout=45)
 
     hilo_cv.join(timeout=20)
 
