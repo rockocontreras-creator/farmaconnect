@@ -58,4 +58,4 @@ ENV PORT=10000
 EXPOSE 10000
 
 # Arrancar: primero inicializa la BD (si no existe), luego lanza el servidor
-CMD python init_db.py; gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180 app:app
+CMD python init_db.py; gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 180 --max-requests 50 --max-requests-jitter 10 app:app

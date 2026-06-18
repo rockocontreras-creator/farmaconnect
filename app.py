@@ -677,6 +677,16 @@ def get_driver():
     # Flags que estabilizan Chrome en servidores con poca memoria/CPU (Render)
     opts.add_argument("--disable-software-rasterizer")
     opts.add_argument("--disable-features=site-per-process,TranslateUI")
+    # Flags AGRESIVOS para reducir el uso de memoria RAM (clave en Render 512MB)
+    if os.environ.get("RENDER"):
+        opts.add_argument("--single-process")          # un solo proceso = mucha menos RAM
+        opts.add_argument("--disable-dev-tools")
+        opts.add_argument("--disable-application-cache")
+        opts.add_argument("--disable-background-timer-throttling")
+        opts.add_argument("--disable-renderer-backgrounding")
+        opts.add_argument("--disable-backgrounding-occluded-windows")
+        opts.add_argument("--js-flags=--max-old-space-size=128")  # limita memoria de JS
+        opts.add_argument("--window-size=800,600")     # ventana más chica = menos RAM
     opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     # Bloquear imágenes, fuentes y CSS para cargar mucho más rápido
     prefs = {
@@ -744,6 +754,11 @@ def scrape_secuencial_un_driver(tareas, remedio, res_list):
                 print(f"<-- {nombre} OK ({len(res_list)-antes} resultados)", flush=True)
             else:
                 print(f"<-- {nombre} sin resultados", flush=True)
+            # Liberar memoria entre farmacias: vaciar la página actual
+            try:
+                driver.get("about:blank")
+            except Exception:
+                pass
     except Exception as e:
         print(f"Error creando driver: {str(e)[:200]}", flush=True)
     finally:
