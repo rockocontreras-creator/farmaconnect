@@ -195,8 +195,33 @@ def init_db():
                         fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY(id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE)''')
 
+    cursor.execute('''CREATE TABLE IF NOT EXISTS notificaciones (
+                        id_notif INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id_usuario INTEGER NOT NULL,
+                        tipo TEXT NOT NULL,
+                        titulo TEXT NOT NULL,
+                        mensaje TEXT NOT NULL,
+                        leida INTEGER DEFAULT 0,
+                        fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY(id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE)''')
+
     conn.commit()
     conn.close()
+
+
+def crear_notificacion(id_usuario, tipo, titulo, mensaje):
+    """Crea una notificación para un usuario. tipo: reporte_aprobado, reporte_rechazado, nivel, alerta."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute(
+            "INSERT INTO notificaciones (id_usuario, tipo, titulo, mensaje) VALUES (?, ?, ?, ?)",
+            (id_usuario, tipo, titulo, mensaje)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error creando notificación: {e}")
 
 init_db()
 
@@ -334,9 +359,37 @@ def admin_aprobar_reporte(rid):
         return jsonify({"error": "Acceso denegado."}), 403
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    # Obtener datos del reporte antes de aprobar (dueño y medicamento)
+    c.execute("SELECT id_usuario, medicamento, farmacia FROM precios_comunidad WHERE id_reporte = ?", (rid,))
+    fila = c.fetchone()
+    # Nivel ANTES de aprobar (para detectar si sube de nivel)
+    nivel_antes = None
+    if fila:
+        c.execute("SELECT COUNT(*) FROM precios_comunidad WHERE id_usuario = ? AND estado = 'aprobado'", (fila[0],))
+        nivel_antes = _calcular_nivel(c.fetchone()[0])["nivel"]
+
     c.execute("UPDATE precios_comunidad SET estado = 'aprobado', motivo_rechazo = NULL WHERE id_reporte = ?", (rid,))
     conn.commit()
     conn.close()
+
+    # Notificar al usuario que su reporte fue aprobado
+    if fila:
+        id_dueno, medic, farm = fila
+        crear_notificacion(
+            id_dueno, "reporte_aprobado", "¡Reporte aprobado! ✅",
+            f"Tu reporte de {medic.capitalize()} en {farm} fue aprobado y ya es visible para la comunidad."
+        )
+        # ¿Subió de nivel con esta aprobación?
+        conn2 = sqlite3.connect(DB_PATH)
+        c2 = conn2.cursor()
+        c2.execute("SELECT COUNT(*) FROM precios_comunidad WHERE id_usuario = ? AND estado = 'aprobado'", (id_dueno,))
+        nivel_despues = _calcular_nivel(c2.fetchone()[0])["nivel"]
+        conn2.close()
+        if nivel_antes and nivel_despues != nivel_antes:
+            crear_notificacion(
+                id_dueno, "nivel", f"¡Subiste a nivel {nivel_despues}! 🎉",
+                f"Felicidades, ahora eres reportero de nivel {nivel_despues}. ¡Sigue colaborando!"
+            )
     return jsonify({"mensaje": "Reporte aprobado."})
 
 
@@ -347,9 +400,19 @@ def admin_rechazar_reporte(rid):
     motivo = (request.json.get('motivo') or 'No cumple con los criterios de calidad.').strip()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    c.execute("SELECT id_usuario, medicamento, farmacia FROM precios_comunidad WHERE id_reporte = ?", (rid,))
+    fila = c.fetchone()
     c.execute("UPDATE precios_comunidad SET estado = 'rechazado', motivo_rechazo = ? WHERE id_reporte = ?", (motivo, rid))
     conn.commit()
     conn.close()
+
+    # Notificar al usuario que su reporte fue rechazado, con el motivo
+    if fila:
+        id_dueno, medic, farm = fila
+        crear_notificacion(
+            id_dueno, "reporte_rechazado", "Reporte rechazado ✕",
+            f"Tu reporte de {medic.capitalize()} en {farm} fue rechazado. Motivo: {motivo}"
+        )
     return jsonify({"mensaje": "Reporte rechazado."})
 
 
@@ -1922,8 +1985,45 @@ def verificar_alertas():
 
 
 # =========================================================
-# HISTORIAL DE CHAT (persistencia de conversaciones con Mathew)
+# NOTIFICACIONES (reportes resueltos, subidas de nivel, etc.)
 # =========================================================
+
+@app.route('/notificaciones', methods=['GET'])
+def listar_notificaciones():
+    """Devuelve las notificaciones del usuario (no leídas primero)."""
+    usuario = resolver_token()
+    if not usuario:
+        return jsonify({"notificaciones": [], "no_leidas": 0})
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''SELECT id_notif, tipo, titulo, mensaje, leida, fecha
+                 FROM notificaciones WHERE id_usuario = ?
+                 ORDER BY leida ASC, fecha DESC LIMIT 30''', (usuario['id'],))
+    notifs = []
+    no_leidas = 0
+    for row in c.fetchall():
+        if row[4] == 0:
+            no_leidas += 1
+        notifs.append({
+            "id": row[0], "tipo": row[1], "titulo": row[2],
+            "mensaje": row[3], "leida": bool(row[4]), "fecha": row[5]
+        })
+    conn.close()
+    return jsonify({"notificaciones": notifs, "no_leidas": no_leidas})
+
+
+@app.route('/notificaciones/leer', methods=['POST'])
+def marcar_notificaciones_leidas():
+    """Marca todas las notificaciones del usuario como leídas."""
+    usuario = resolver_token()
+    if not usuario:
+        return jsonify({"error": "Sesión requerida."}), 401
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE notificaciones SET leida = 1 WHERE id_usuario = ?", (usuario['id'],))
+    conn.commit()
+    conn.close()
+    return jsonify({"mensaje": "Notificaciones marcadas como leídas."})
 
 @app.route('/chat/historial', methods=['GET'])
 def chat_historial():

@@ -1673,45 +1673,86 @@ async function verificarAlertas() {
     document.getElementById('notif-wrapper').style.display = 'block';
 
     try {
-        const r = await fetch(`${API}/alertas/verificar`, { headers: authHeaders() });
-        if (!r.ok) return;
-        const disparadas = await r.json();
+        // Traer en paralelo: alertas de precio disparadas + notificaciones (reportes, niveles)
+        const [rAlertas, rNotifs] = await Promise.all([
+            fetch(`${API}/alertas/verificar`, { headers: authHeaders() }),
+            fetch(`${API}/notificaciones`, { headers: authHeaders() })
+        ]);
+
+        const disparadas = rAlertas.ok ? await rAlertas.json() : [];
+        const dataNotifs = rNotifs.ok ? await rNotifs.json() : { notificaciones: [], no_leidas: 0 };
+        const notifs = dataNotifs.notificaciones || [];
 
         const countEl = document.getElementById('notif-count');
         const listEl = document.getElementById('notif-list');
 
-        if (disparadas.length > 0) {
-            countEl.textContent = disparadas.length;
+        // Contador total = notificaciones no leídas + alertas de precio disparadas
+        const totalNuevas = (dataNotifs.no_leidas || 0) + disparadas.length;
+        if (totalNuevas > 0) {
+            countEl.textContent = totalNuevas;
             countEl.style.display = 'flex';
-
-            let html = '';
-            disparadas.forEach(a => {
-                html += `<div class="notif-item notif-triggered">
-                    <div class="notif-item-icon">💰</div>
-                    <div class="notif-item-text">
-                        <strong>${a.medicamento.toUpperCase()}</strong> bajó a
-                        <span class="notif-price">$${a.precio_actual.toLocaleString('es-CL')}</span>
-                        en <strong>${a.farmacia}</strong>
-                        <span class="notif-meta">Tu umbral: $${a.umbral.toLocaleString('es-CL')}</span>
-                    </div>
-                    <button class="notif-action-btn" onclick="document.getElementById('manual-search').value='${a.medicamento}'; irASeccion('search'); startScraping(); toggleNotifPanel();">
-                        Ver
-                    </button>
-                </div>`;
-            });
-            listEl.innerHTML = html;
         } else {
             countEl.style.display = 'none';
-            listEl.innerHTML = '<div class="notif-empty">Sin alertas disparadas. Tus precios aún no han bajado del umbral.</div>';
         }
+
+        let html = '';
+
+        // 1) Notificaciones de reportes y niveles
+        notifs.forEach(n => {
+            const icono = {
+                reporte_aprobado: '✅',
+                reporte_rechazado: '✕',
+                nivel: '🏆',
+                alerta: '💰'
+            }[n.tipo] || '🔔';
+            const claseNoLeida = n.leida ? '' : ' notif-triggered';
+            html += `<div class="notif-item${claseNoLeida}">
+                <div class="notif-item-icon">${icono}</div>
+                <div class="notif-item-text">
+                    <strong>${n.titulo}</strong>
+                    <span class="notif-meta">${n.mensaje}</span>
+                </div>
+            </div>`;
+        });
+
+        // 2) Alertas de precio disparadas
+        disparadas.forEach(a => {
+            html += `<div class="notif-item notif-triggered">
+                <div class="notif-item-icon">💰</div>
+                <div class="notif-item-text">
+                    <strong>${a.medicamento.toUpperCase()}</strong> bajó a
+                    <span class="notif-price">$${a.precio_actual.toLocaleString('es-CL')}</span>
+                    en <strong>${a.farmacia}</strong>
+                    <span class="notif-meta">Tu umbral: $${a.umbral.toLocaleString('es-CL')}</span>
+                </div>
+                <button class="notif-action-btn" onclick="document.getElementById('manual-search').value='${a.medicamento}'; irASeccion('search'); startScraping(); toggleNotifPanel();">
+                    Ver
+                </button>
+            </div>`;
+        });
+
+        if (html === '') {
+            html = '<div class="notif-empty">No tienes notificaciones nuevas.</div>';
+        }
+        listEl.innerHTML = html;
     } catch (e) {
-        console.error("Error verificando alertas:", e);
+        console.error("Error verificando notificaciones:", e);
     }
 }
 
 function toggleNotifPanel() {
     const panel = document.getElementById('notif-panel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    const seAbre = panel.style.display === 'none';
+    panel.style.display = seAbre ? 'block' : 'none';
+    // Al abrir el panel, marcar las notificaciones como leídas y limpiar el contador
+    if (seAbre && getToken()) {
+        fetch(`${API}/notificaciones/leer`, { method: 'POST', headers: authHeaders() })
+            .then(() => {
+                const countEl = document.getElementById('notif-count');
+                if (countEl) countEl.style.display = 'none';
+            })
+            .catch(() => {});
+    }
 }
 
 // Cerrar panel al hacer clic fuera
