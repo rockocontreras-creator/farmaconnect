@@ -725,6 +725,33 @@ def get_driver():
     return driver
 
 
+def scrape_secuencial_un_driver(tareas, remedio, res_list):
+    """OPTIMIZACIÓN para Render: usa UN SOLO Chrome para todas las farmacias,
+       en vez de abrir y cerrar uno por cada una (lo más costoso en CPU/tiempo).
+       Abre Chrome una vez, navega por las 3 farmacias, y lo cierra al final."""
+    driver = None
+    try:
+        driver = get_driver()
+        for func in tareas:
+            nombre = func.__name__.replace("logic_", "").capitalize()
+            antes = len(res_list)
+            print(f"--> Iniciando {nombre}...", flush=True)
+            try:
+                func(remedio, driver, res_list)
+            except Exception as e:
+                print(f"[{nombre}] falló: {str(e)[:200]}", flush=True)
+            if len(res_list) > antes:
+                print(f"<-- {nombre} OK ({len(res_list)-antes} resultados)", flush=True)
+            else:
+                print(f"<-- {nombre} sin resultados", flush=True)
+    except Exception as e:
+        print(f"Error creando driver: {str(e)[:200]}", flush=True)
+    finally:
+        if driver:
+            try: driver.quit()
+            except Exception: pass
+
+
 def scrape_task(func, remedio, res_list):
     """Ejecuta el scraper de una farmacia con reintento inteligente.
        Reintenta solo si NO obtuvo resultados (fallo de carga o anti-bot)."""
@@ -1347,11 +1374,10 @@ def scraping_manual():
     tareas_selenium = [logic_ahumada, logic_drsimi, logic_salcobrand]
 
     if os.environ.get("RENDER"):
-        # En Render (512MB) abrir 2-3 Chrome a la vez agota la memoria y el
-        # servidor SE REINICIA a mitad de la búsqueda (se pierde todo). Por eso
-        # se ejecutan de UNA EN UNA: es más lento, pero el servidor NO se cae.
-        for func in tareas_selenium:
-            scrape_task(func, remedio, res)
+        # En Render (512MB): UN SOLO Chrome para las 3 farmacias (reutiliza el driver
+        # en vez de abrir/cerrar 3 veces, que es lo más costoso). Secuencial = no
+        # agota la memoria, y al reutilizar el navegador ahorra tiempo de arranque.
+        scrape_secuencial_un_driver(tareas_selenium, remedio, res)
     else:
         # En local hay CPU/RAM de sobra: las 3 en paralelo (rápido)
         hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]
