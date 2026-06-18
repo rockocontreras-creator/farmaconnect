@@ -120,26 +120,31 @@ def inicializar_nuevo_esquema():
                         fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY(id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE)''')
 
-    # Crear un administrador por defecto si no existe ninguno
-    import hashlib
+    # Crear administradores por defecto
+    import hashlib, random
+    from datetime import datetime, timedelta
     APP_SECRET = os.environ.get('APP_SECRET', 'farmaconnect_dev_secret_2024')
     def _hash(p): return hashlib.sha256(f"{APP_SECRET}{p}".encode()).hexdigest()
     cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM usuarios WHERE es_admin = 1")
-    if cursor.fetchone()[0] == 0:
-        admin_correo = os.environ.get('ADMIN_EMAIL', 'admin@farmaconnect.cl')
-        admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin12345')
+
+    # Admin principal solicitado + admin configurable por variables de entorno
+    admins = [
+        ("Administrador", "admin@gmail.com", "admin1234"),
+        ("Administrador", os.environ.get('ADMIN_EMAIL', 'admin@farmaconnect.cl'),
+                          os.environ.get('ADMIN_PASSWORD', 'admin12345')),
+    ]
+    for nombre, correo, clave in admins:
         try:
             cursor.execute(
                 "INSERT INTO usuarios (nombre, correo, contraseña, es_admin) VALUES (?, ?, ?, 1)",
-                ("Administrador", admin_correo, _hash(admin_pass))
+                (nombre, correo, _hash(clave))
             )
-            print(f"Admin creado: {admin_correo}")
-        except Exception as e:
-            print(f"Admin ya existía o error: {e}")
+            print(f"Admin creado: {correo}")
+        except Exception:
+            pass  # ya existe
 
     # ============================================================
-    # DATOS DE EJEMPLO PARA LA DEMO (usuarios + historial)
+    # DATOS DE EJEMPLO PARA LA DEMO (usuarios + historial de junio)
     # ============================================================
     print("Cargando datos de ejemplo para la demostración...")
 
@@ -156,70 +161,74 @@ def inicializar_nuevo_esquema():
                 (nombre, correo, _hash(clave), admin)
             )
         except Exception:
-            pass  # ya existe
+            pass
 
-    # Medicamentos de ejemplo
-    medicamentos_demo = ["paracetamol", "ibuprofeno", "amoxicilina", "loratadina", "omeprazol"]
+    # Medicamentos de ejemplo (ampliados)
+    medicamentos_demo = [
+        "paracetamol", "ibuprofeno", "amoxicilina", "loratadina", "omeprazol",
+        "aspirina", "naproxeno", "clonazepam", "metformina", "losartan",
+        "cetirizina", "diclofenaco",
+    ]
     for med in medicamentos_demo:
         try:
             cursor.execute("INSERT INTO medicamentos (nombre_buscado) VALUES (?)", (med,))
         except Exception:
             pass
 
-    # Historial de ejemplo: precios por farmacia para cada medicamento.
-    # Estructura: medicamento -> [(id_farmacia, precio, nombre_producto), ...]
-    historial_demo = {
-        "paracetamol": [
-            (1, 731, "Paracetamol 500 mg x 16 Comprimidos"),
-            (2, 480, "Paracetamol 500 Mg 16 Comprimidos"),
-            (3, 999, "Kitadol Paracetamol 500mg 24 Comprimidos"),
-            (4, 1290, "Paracetamol 500 Mg 16 Comprimidos"),
-        ],
-        "ibuprofeno": [
-            (1, 1190, "Ibuprofeno 400 mg x 20 Comprimidos"),
-            (2, 890, "Ibuprofeno 400 Mg 20 Comprimidos"),
-            (3, 1490, "Ibuprofeno 600 mg x 20 Comprimidos"),
-            (4, 1390, "Ibuprofeno 400 Mg 20 Comprimidos"),
-        ],
-        "amoxicilina": [
-            (1, 1195, "Amoxicilina 500 mg"),
-            (2, 2200, "Amoxicilina 250 Mg/5 ML Suspensión Oral"),
-            (3, 3199, "Amoxicilina 500mg/5ml Suspensión Oral 60ml"),
-            (4, 3051, "Amoxicilina 500 Mg 5ml Jarabe 60 Ml"),
-        ],
-        "loratadina": [
-            (1, 990, "Loratadina 10 mg x 10 Comprimidos"),
-            (2, 750, "Loratadina 10 Mg 10 Comprimidos"),
-            (3, 1290, "Clarityne Loratadina 10mg x 10"),
-            (4, 1100, "Loratadina 10 Mg 10 Comprimidos"),
-        ],
-        "omeprazol": [
-            (1, 2490, "Omeprazol 20 mg x 30 Cápsulas"),
-            (2, 1890, "Omeprazol 20 Mg 30 Cápsulas"),
-            (3, 2990, "Omeprazol 20 mg x 28 Cápsulas"),
-            (4, 2690, "Omeprazol 20 Mg 30 Cápsulas"),
-        ],
+    # Precio base por farmacia para cada medicamento (id_farmacia: precio inicial)
+    # y el nombre del producto que muestra cada farmacia.
+    # Farmacias: 1=Ahumada, 2=Dr. Simi, 3=Salcobrand, 4=Cruz Verde
+    base_precios = {
+        "paracetamol":  {1: 731,  2: 480,  3: 999,  4: 1290, "nom": "Paracetamol 500 mg"},
+        "ibuprofeno":   {1: 1190, 2: 890,  3: 1490, 4: 1390, "nom": "Ibuprofeno 400 mg"},
+        "amoxicilina":  {1: 1195, 2: 2200, 3: 3199, 4: 3051, "nom": "Amoxicilina 500 mg"},
+        "loratadina":   {1: 990,  2: 750,  3: 1290, 4: 1100, "nom": "Loratadina 10 mg"},
+        "omeprazol":    {1: 2490, 2: 1890, 3: 2990, 4: 2690, "nom": "Omeprazol 20 mg"},
+        "aspirina":     {1: 1290, 2: 990,  3: 1590, 4: 1450, "nom": "Aspirina 500 mg"},
+        "naproxeno":    {1: 2190, 2: 1690, 3: 2490, 4: 2290, "nom": "Naproxeno 550 mg"},
+        "clonazepam":   {1: 3490, 2: 2890, 3: 3990, 4: 3690, "nom": "Clonazepam 2 mg"},
+        "metformina":   {1: 1890, 2: 1490, 3: 2190, 4: 1990, "nom": "Metformina 850 mg"},
+        "losartan":     {1: 2290, 2: 1790, 3: 2690, 4: 2490, "nom": "Losartán 50 mg"},
+        "cetirizina":   {1: 1390, 2: 990,  3: 1690, 4: 1490, "nom": "Cetirizina 10 mg"},
+        "diclofenaco":  {1: 1590, 2: 1190, 3: 1890, 4: 1690, "nom": "Diclofenaco 50 mg"},
     }
 
-    for med, registros in historial_demo.items():
-        # obtener id del medicamento
+    # Generar historial de precios CADA 2 DÍAS durante junio (1 al 29),
+    # con variación realista (los precios suben y bajan ±12%).
+    random.seed(42)  # reproducible
+    fechas_junio = [datetime(2026, 6, dia, 12, 0, 0) for dia in range(1, 30, 2)]  # 1,3,5,...,29
+
+    total_registros = 0
+    for med, datos in base_precios.items():
         fila = cursor.execute(
             "SELECT id_medicamento FROM medicamentos WHERE nombre_buscado = ?", (med,)
         ).fetchone()
         if not fila:
             continue
         id_med = fila[0]
-        for id_farm, precio, nombre_prod in registros:
-            try:
-                cursor.execute(
-                    """INSERT INTO historial (id_farmacia, id_medicamento, id_usuario, precio, nombre_especifico)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (id_farm, id_med, 1, precio, nombre_prod)
-                )
-            except Exception:
-                pass
+        nombre_prod = datos["nom"]
 
-    print("Datos de ejemplo cargados.")
+        # precio actual por farmacia (irá variando en el tiempo)
+        actuales = {f: datos[f] for f in (1, 2, 3, 4)}
+
+        for fecha in fechas_junio:
+            for id_farm in (1, 2, 3, 4):
+                base = datos[id_farm]
+                # variación suave alrededor del precio base (±12%)
+                factor = 1 + random.uniform(-0.12, 0.12)
+                precio = int(round(base * factor / 10) * 10)  # redondear a decenas
+                try:
+                    cursor.execute(
+                        """INSERT INTO historial
+                           (id_farmacia, id_medicamento, id_usuario, precio, nombre_especifico, fecha_registro)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
+                        (id_farm, id_med, 1, precio, nombre_prod, fecha.strftime("%Y-%m-%d %H:%M:%S"))
+                    )
+                    total_registros += 1
+                except Exception:
+                    pass
+
+    print(f"Datos de ejemplo cargados: {total_registros} registros de historial en junio.")
 
     conn.commit()
 
