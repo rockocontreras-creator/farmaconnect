@@ -677,8 +677,10 @@ def get_driver():
     # Flags que estabilizan Chrome en servidores con poca memoria/CPU (Render)
     opts.add_argument("--disable-software-rasterizer")
     opts.add_argument("--disable-features=site-per-process,TranslateUI")
-    # Flags AGRESIVOS para reducir el uso de memoria RAM (clave en Render 512MB)
-    if os.environ.get("RENDER"):
+    # Flags AGRESIVOS para reducir memoria RAM, SOLO en plan gratuito (512MB).
+    # En plan pagado (2GB) no se usan, porque --single-process da problemas con
+    # varios Chrome en paralelo y ya no hace falta ahorrar tanta memoria.
+    if os.environ.get("RENDER") and not os.environ.get("PLAN_PAGADO"):
         opts.add_argument("--single-process")          # un solo proceso = mucha menos RAM
         opts.add_argument("--disable-dev-tools")
         opts.add_argument("--disable-application-cache")
@@ -1388,13 +1390,13 @@ def scraping_manual():
 
     tareas_selenium = [logic_ahumada, logic_drsimi, logic_salcobrand]
 
-    if os.environ.get("RENDER"):
-        # En Render (512MB): UN SOLO Chrome para las 3 farmacias (reutiliza el driver
-        # en vez de abrir/cerrar 3 veces, que es lo más costoso). Secuencial = no
-        # agota la memoria, y al reutilizar el navegador ahorra tiempo de arranque.
+    # PLAN_PAGADO=true (plan Starter de Render con 2GB) -> las 3 farmacias EN PARALELO (rápido).
+    # Sin esa variable (plan Free 512MB) -> secuencial con un solo Chrome (estable pero lento).
+    if os.environ.get("RENDER") and not os.environ.get("PLAN_PAGADO"):
+        # Plan gratuito: un solo Chrome, secuencial (no agota los 512MB)
         scrape_secuencial_un_driver(tareas_selenium, remedio, res)
     else:
-        # En local hay CPU/RAM de sobra: las 3 en paralelo (rápido)
+        # Plan pagado o local: las 3 en paralelo (hay RAM de sobra) = mucho más rápido
         hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]
         for t in hilos: t.start()
         for t in hilos: t.join(timeout=45)
@@ -1662,7 +1664,7 @@ def mis_reportes():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''SELECT id_reporte, medicamento, farmacia, precio, comuna, estado, motivo_rechazo, fecha_reporte
-                 FROM precios_comunidad WHERE id_usuario = ? ORDER BY fecha_reporte DESC LIMIT 30''', (usuario['id'],))
+                 FROM precios_comunidad WHERE id_usuario = ? ORDER BY fecha_reporte DESC LIMIT 5''', (usuario['id'],))
     reportes = []
     for row in c.fetchall():
         reportes.append({

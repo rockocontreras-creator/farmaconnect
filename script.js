@@ -2728,10 +2728,14 @@ async function cargarMisReportes() {
     if (!cont) return;
     try {
         const r = await fetch(`${API}/comunidad/mis_reportes`, { headers: authHeaders() });
-        const reportes = await r.json();
-        if (!reportes || reportes.length === 0) return;
+        const todos = await r.json();
+        if (!todos || todos.length === 0) return;
 
-        let html = '<h4 style="font-size:0.95rem;font-weight:700;margin-bottom:10px;">Mis reportes</h4><div class="mis-reportes-list">';
+        // Mostrar solo los 5 más recientes para no llenar el perfil
+        const reportes = todos.slice(0, 5);
+        const totalTxt = todos.length > 5 ? ` (mostrando 5 de ${todos.length})` : '';
+
+        let html = `<h4 style="font-size:0.95rem;font-weight:700;margin-bottom:10px;">Mis reportes recientes${totalTxt}</h4><div class="mis-reportes-list">`;
         reportes.forEach(rep => {
             const estadoInfo = {
                 pendiente: { label: 'En revisión', color: '#f59e0b', icon: '⏳' },
