@@ -731,7 +731,9 @@ def scrape_task(func, remedio, res_list):
     nombre_farmacia = func.__name__.replace("logic_", "").capitalize()
     antes = len(res_list)
     print(f"--> Iniciando {nombre_farmacia}...", flush=True)
-    for intento in (1, 2):
+    # En Render NO se reintenta (el reintento duplica el tiempo). Un solo intento.
+    intentos = (1,) if os.environ.get("RENDER") else (1, 2)
+    for intento in intentos:
         driver = None
         try:
             driver = get_driver()
@@ -745,7 +747,7 @@ def scrape_task(func, remedio, res_list):
         if len(res_list) > antes:
             print(f"<-- {nombre_farmacia} OK ({len(res_list)-antes} resultados)", flush=True)
             break  # ya hay resultado, no reintentar
-        elif intento == 1:
+        elif intento == 1 and len(intentos) > 1:
             print(f"[{nombre_farmacia}] sin resultados, reintentando...", flush=True)
 
 
@@ -1345,14 +1347,16 @@ def scraping_manual():
     tareas_selenium = [logic_ahumada, logic_drsimi, logic_salcobrand]
 
     if os.environ.get("RENDER"):
-        # En Render (512MB RAM, CPU compartida): equilibrio velocidad/estabilidad.
-        # Se corre de a 2 Chrome a la vez (no 3, que satura y da timeouts).
-        # Dr. Simi es la más liviana, así que se empareja con otra.
-        grupos = [[logic_ahumada, logic_drsimi], [logic_salcobrand]]
-        for grupo in grupos:
-            hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in grupo]
-            for t in hilos: t.start()
-            for t in hilos: t.join(timeout=55)
+        # En Render: las 3 farmacias de Selenium en paralelo CON UN TOPE DE TIEMPO FIJO.
+        # En vez de esperar a que cada una termine (lo que suma tiempos), se lanzan todas
+        # juntas y se espera máximo ~50s en total. Las que alcanzaron, responden; las que
+        # no, se descartan (se muestra "sin resultados en X"). Así el tiempo es acotado.
+        hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res), daemon=True) for f in tareas_selenium]
+        for t in hilos: t.start()
+        inicio = time.time()
+        for t in hilos:
+            restante = max(1, 50 - (time.time() - inicio))
+            t.join(timeout=restante)
     else:
         # En local hay CPU de sobra: las 3 en paralelo (rápido)
         hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]

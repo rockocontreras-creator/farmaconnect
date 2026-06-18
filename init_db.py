@@ -230,6 +230,100 @@ def inicializar_nuevo_esquema():
 
     print(f"Datos de ejemplo cargados: {total_registros} registros de historial en junio.")
 
+    # ============================================================
+    # REPORTES DE LA COMUNIDAD (para niveles de colaborador y panel admin)
+    # ============================================================
+    # Asegurar que la tabla tenga las columnas estado y motivo_rechazo
+    for col, ddl in [("estado", "ALTER TABLE precios_comunidad ADD COLUMN estado TEXT DEFAULT 'pendiente'"),
+                     ("motivo_rechazo", "ALTER TABLE precios_comunidad ADD COLUMN motivo_rechazo TEXT")]:
+        try:
+            cursor.execute(ddl)
+        except Exception:
+            pass
+
+    # Obtener ids de los usuarios para asignarles reportes
+    def _uid(correo):
+        r = cursor.execute("SELECT id_usuario FROM usuarios WHERE correo=?", (correo,)).fetchone()
+        return r[0] if r else None
+
+    id_juan = _uid("juan@demo.cl")
+    id_camila = _uid("camila@demo.cl")
+    id_maria = _uid("maria@demo.cl")
+    id_admin = _uid("admin@gmail.com")
+
+    farmacias_nom = ["Ahumada", "Dr. Simi", "Salcobrand", "Cruz Verde"]
+    comunas = ["Santiago", "Providencia", "Maipú", "La Florida", "Ñuñoa", "Puente Alto"]
+
+    # (id_usuario, nombre, medicamento, farmacia, precio, comuna, estado)
+    # Se le dan MUCHOS reportes aprobados a cada usuario para que suban de nivel:
+    #   Novato 0-2 / Bronce 3-9 / Plata 10-19 / Oro 20+
+    reportes = []
+
+    # Juan -> nivel ORO (22 reportes aprobados)
+    for i in range(22):
+        reportes.append((id_juan, "Juan Contreras",
+                         medicamentos_demo[i % len(medicamentos_demo)],
+                         farmacias_nom[i % 4],
+                         500 + (i * 73) % 3000,
+                         comunas[i % len(comunas)], "aprobado", None))
+
+    # Camila -> nivel PLATA (14 reportes aprobados)
+    for i in range(14):
+        reportes.append((id_camila, "Camila Beltrán",
+                         medicamentos_demo[(i + 2) % len(medicamentos_demo)],
+                         farmacias_nom[(i + 1) % 4],
+                         600 + (i * 91) % 2800,
+                         comunas[(i + 2) % len(comunas)], "aprobado", None))
+
+    # María -> nivel BRONCE (6 reportes aprobados)
+    for i in range(6):
+        reportes.append((id_maria, "María González",
+                         medicamentos_demo[(i + 4) % len(medicamentos_demo)],
+                         farmacias_nom[(i + 2) % 4],
+                         700 + (i * 110) % 2500,
+                         comunas[(i + 1) % len(comunas)], "aprobado", None))
+
+    # Admin -> nivel ORO también (25 reportes aprobados)
+    for i in range(25):
+        reportes.append((id_admin, "Administrador",
+                         medicamentos_demo[(i + 1) % len(medicamentos_demo)],
+                         farmacias_nom[(i + 3) % 4],
+                         550 + (i * 67) % 3200,
+                         comunas[(i + 3) % len(comunas)], "aprobado", None))
+
+    # Reportes PENDIENTES (para que el admin los modere desde el panel)
+    pendientes = [
+        (id_juan,   "Juan Contreras", "paracetamol", "Cruz Verde", 690,  "Santiago",    "pendiente", None),
+        (id_camila, "Camila Beltrán", "ibuprofeno",  "Ahumada",    1150, "Providencia", "pendiente", None),
+        (id_maria,  "María González", "omeprazol",   "Salcobrand", 2390, "Maipú",       "pendiente", None),
+        (id_juan,   "Juan Contreras", "loratadina",  "Dr. Simi",   820,  "Ñuñoa",       "pendiente", None),
+        (id_camila, "Camila Beltrán", "amoxicilina", "Cruz Verde", 2990, "La Florida",  "pendiente", None),
+    ]
+    reportes.extend(pendientes)
+
+    # Un par RECHAZADOS (para que el panel muestre los 3 estados)
+    reportes.append((id_maria, "María González", "aspirina", "Ahumada", 99,
+                     "Santiago", "rechazado", "Precio fuera de rango, posible error de tipeo"))
+    reportes.append((id_juan, "Juan Contreras", "metformina", "Salcobrand", 50,
+                     "Maipú", "rechazado", "Precio no verosímil"))
+
+    insertados = 0
+    for r in reportes:
+        if r[0] is None:
+            continue
+        try:
+            cursor.execute(
+                """INSERT INTO precios_comunidad
+                   (id_usuario, nombre_usuario, medicamento, farmacia, precio, comuna, estado, motivo_rechazo, votos)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], (insertados * 3) % 15)
+            )
+            insertados += 1
+        except Exception as e:
+            print("Error insertando reporte:", e)
+
+    print(f"Reportes de comunidad cargados: {insertados} (aprobados, pendientes y rechazados).")
+
     conn.commit()
 
 if __name__ == '__main__':
