@@ -1347,18 +1347,13 @@ def scraping_manual():
     tareas_selenium = [logic_ahumada, logic_drsimi, logic_salcobrand]
 
     if os.environ.get("RENDER"):
-        # En Render: las 3 farmacias de Selenium en paralelo CON UN TOPE DE TIEMPO FIJO.
-        # En vez de esperar a que cada una termine (lo que suma tiempos), se lanzan todas
-        # juntas y se espera máximo ~50s en total. Las que alcanzaron, responden; las que
-        # no, se descartan (se muestra "sin resultados en X"). Así el tiempo es acotado.
-        hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res), daemon=True) for f in tareas_selenium]
-        for t in hilos: t.start()
-        inicio = time.time()
-        for t in hilos:
-            restante = max(1, 50 - (time.time() - inicio))
-            t.join(timeout=restante)
+        # En Render (512MB) abrir 2-3 Chrome a la vez agota la memoria y el
+        # servidor SE REINICIA a mitad de la búsqueda (se pierde todo). Por eso
+        # se ejecutan de UNA EN UNA: es más lento, pero el servidor NO se cae.
+        for func in tareas_selenium:
+            scrape_task(func, remedio, res)
     else:
-        # En local hay CPU de sobra: las 3 en paralelo (rápido)
+        # En local hay CPU/RAM de sobra: las 3 en paralelo (rápido)
         hilos = [threading.Thread(target=scrape_task, args=(f, remedio, res)) for f in tareas_selenium]
         for t in hilos: t.start()
         for t in hilos: t.join(timeout=45)

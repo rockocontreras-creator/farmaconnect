@@ -259,32 +259,32 @@ def inicializar_nuevo_esquema():
     #   Novato 0-2 / Bronce 3-9 / Plata 10-19 / Oro 20+
     reportes = []
 
-    # Juan -> nivel ORO (22 reportes aprobados)
-    for i in range(22):
+    # Juan -> nivel ORO (20 reportes = mínimo para Oro)
+    for i in range(20):
         reportes.append((id_juan, "Juan Contreras",
                          medicamentos_demo[i % len(medicamentos_demo)],
                          farmacias_nom[i % 4],
                          500 + (i * 73) % 3000,
                          comunas[i % len(comunas)], "aprobado", None))
 
-    # Camila -> nivel PLATA (14 reportes aprobados)
-    for i in range(14):
+    # Camila -> nivel PLATA (10 reportes = mínimo para Plata)
+    for i in range(10):
         reportes.append((id_camila, "Camila Beltrán",
                          medicamentos_demo[(i + 2) % len(medicamentos_demo)],
                          farmacias_nom[(i + 1) % 4],
                          600 + (i * 91) % 2800,
                          comunas[(i + 2) % len(comunas)], "aprobado", None))
 
-    # María -> nivel BRONCE (6 reportes aprobados)
-    for i in range(6):
+    # María -> nivel BRONCE (3 reportes = mínimo para Bronce)
+    for i in range(3):
         reportes.append((id_maria, "María González",
                          medicamentos_demo[(i + 4) % len(medicamentos_demo)],
                          farmacias_nom[(i + 2) % 4],
                          700 + (i * 110) % 2500,
                          comunas[(i + 1) % len(comunas)], "aprobado", None))
 
-    # Admin -> nivel ORO también (25 reportes aprobados)
-    for i in range(25):
+    # Admin -> nivel ORO (20 reportes)
+    for i in range(20):
         reportes.append((id_admin, "Administrador",
                          medicamentos_demo[(i + 1) % len(medicamentos_demo)],
                          farmacias_nom[(i + 3) % 4],
