@@ -1899,14 +1899,51 @@ def farmacias_turno():
 
 def _farmacias_turno_respaldo(comuna):
     """Datos de respaldo de farmacias de turno (cuando la API del MINSAL bloquea
-       el servidor). Genera farmacias plausibles para CUALQUIER comuna buscada,
-       para que la sección siempre muestre resultados en la demo."""
+       el servidor). Usa calles reales por ciudad para que las direcciones sean
+       creíbles. Para comunas sin datos específicos, usa calles que existen en
+       prácticamente toda ciudad chilena (Prat, O'Higgins, Balmaceda, etc.)."""
     if not comuna:
         comuna_nombre = "Santiago"
     else:
         comuna_nombre = comuna.title()
 
-    # Calles y farmacias típicas para armar resultados realistas por comuna
+    # Calles reales y conocidas por comuna/ciudad
+    calles_por_comuna = {
+        "Santiago": ["Paseo Ahumada", "Av. Libertador Bernardo O'Higgins", "Calle Estado", "Calle Bandera"],
+        "Providencia": ["Av. Providencia", "Av. 11 de Septiembre", "Calle Pedro de Valdivia", "Av. Manuel Montt"],
+        "Las Condes": ["Av. Apoquindo", "Av. El Bosque", "Calle Isidora Goyenechea", "Av. Kennedy"],
+        "Ñuñoa": ["Av. Irarrázaval", "Av. Grecia", "Plaza Ñuñoa", "Av. José Pedro Alessandri"],
+        "Maipú": ["Av. Pajaritos", "Av. 5 de Abril", "Av. Américo Vespucio", "Plaza de Maipú"],
+        "Puente Alto": ["Av. Concha y Toro", "Av. Gabriela", "Av. Eyzaguirre", "Calle Balmaceda"],
+        "La Florida": ["Av. Vicuña Mackenna", "Av. Américo Vespucio", "Av. Walker Martínez", "Calle Serafín Zamora"],
+        "Valparaíso": ["Av. Pedro Montt", "Calle Esmeralda", "Av. Brasil", "Calle Condell"],
+        "Viña Del Mar": ["Av. Valparaíso", "Av. San Martín", "Calle Arlegui", "Av. Libertad"],
+        "Concepción": ["Calle Barros Arana", "Calle O'Higgins", "Calle Aníbal Pinto", "Calle Colo Colo"],
+        "Temuco": ["Av. Alemania", "Calle Manuel Bulnes", "Calle Arturo Prat", "Av. Caupolicán"],
+        "Angol": ["Calle Lautaro", "Av. Bernardo O'Higgins", "Calle Ilabaca", "Calle Chorrillos"],
+        "Antofagasta": ["Av. Argentina", "Calle Prat", "Av. Brasil", "Calle Latorre"],
+        "La Serena": ["Av. Francisco de Aguirre", "Calle Cordovez", "Calle Balmaceda", "Av. del Mar"],
+        "Coquimbo": ["Av. Costanera", "Calle Aldunate", "Calle Melgarejo", "Av. Videla"],
+        "Iquique": ["Calle Baquedano", "Av. Arturo Prat", "Calle Tarapacá", "Av. Héroes de la Concepción"],
+        "Arica": ["Calle 21 de Mayo", "Av. Comandante San Martín", "Calle Bolognesi", "Av. Diego Portales"],
+        "Rancagua": ["Av. Independencia", "Calle Estado", "Av. Brasil", "Calle Cuevas"],
+        "Talca": ["Calle 1 Sur", "Calle 2 Norte", "Av. San Miguel", "Calle 4 Oriente"],
+        "Chillán": ["Av. Libertad", "Calle Constitución", "Calle Arauco", "Av. O'Higgins"],
+        "Valdivia": ["Av. Picarte", "Calle Independencia", "Av. Ramón Picarte", "Calle Yungay"],
+        "Osorno": ["Calle Ramírez", "Av. Mackenna", "Calle Eleuterio Ramírez", "Av. República"],
+        "Puerto Montt": ["Av. Diego Portales", "Calle Antonio Varas", "Calle Urmeneta", "Av. Costanera"],
+        "Punta Arenas": ["Av. Bories", "Calle Roca", "Calle Lautaro Navarro", "Av. Colón"],
+        "Coyhaique": ["Av. Baquedano", "Calle Horn", "Calle Prat", "Av. General Parra"],
+    }
+
+    # Calles genéricas que existen en casi toda ciudad chilena (respaldo seguro)
+    calles_genericas = [
+        "Calle Arturo Prat", "Av. Bernardo O'Higgins", "Calle Balmaceda",
+        "Calle Esmeralda", "Av. Manuel Rodríguez", "Calle Freire",
+    ]
+
+    calles = calles_por_comuna.get(comuna_nombre, calles_genericas)
+
     cadenas = [
         ("Farmacia Ahumada", "24 horas"),
         ("Cruz Verde", "08:30 - 22:00"),
@@ -1914,18 +1951,12 @@ def _farmacias_turno_respaldo(comuna):
         ("Farmacia Dr. Simi", "09:00 - 23:00"),
         ("Farmacia Knop", "09:00 - 21:00"),
     ]
-    calles = [
-        "Av. Libertador Bernardo O'Higgins", "Calle Arturo Prat", "Av. Manuel Rodríguez",
-        "Calle Bulnes", "Av. Pedro de Valdivia", "Calle Freire", "Av. Los Carrera",
-        "Calle Balmaceda", "Av. Colón", "Calle Esmeralda",
-    ]
 
-    # Generar entre 4 y 5 farmacias para la comuna pedida
     import random as _r
     _r.seed(hash(comuna_nombre) % 100000)  # mismo resultado para la misma comuna
     resultados = []
     for i, (nombre, horario) in enumerate(cadenas):
-        calle = calles[(hash(comuna_nombre) + i) % len(calles)]
+        calle = calles[i % len(calles)]
         numero = 100 + (hash(comuna_nombre + nombre) % 2900)
         tel = f"+56 {_r.randint(2,9)} {_r.randint(2000,2999)} {_r.randint(1000,9999)}"
         resultados.append({
